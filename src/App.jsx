@@ -1,529 +1,685 @@
-import { useState, useMemo } from 'react'
-import { Button } from '@/components/ui/button.jsx'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { Progress } from '@/components/ui/progress.jsx'
+import { useState, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
+import { Button } from './components/ui/button';
+import { Progress } from './components/ui/progress';
+import { Badge } from './components/ui/badge';
+import { TaskForm } from './components/TaskForm';
+import TaskFilters from './components/TaskFilters';
+import { UserHeader } from './components/UserHeader';
+import { AuthModal } from './components/AuthModal';
+import { CalendarView } from './components/CalendarView';
+import { useAuth } from './hooks/useAuth';
+import { useTasks } from './hooks/useTasks';
+import { useRecurringTasks } from './hooks/useRecurringTasks';
+import { useGoogleCalendar } from './hooks/useGoogleCalendar';
+import { formatRecurrenceDescription } from './utils/recurrence';
 import { 
-  Calendar, 
   CheckCircle2, 
-  Plus, 
-  Home, 
-  List, 
+  Circle, 
+  Calendar, 
   BarChart3, 
-  Settings,
-  Clock,
-  Target,
+  Plus, 
+  Edit2, 
+  Trash2,
+  Home,
+  ListTodo,
   TrendingUp,
-  Edit,
-  Trash2
-} from 'lucide-react'
-import TaskForm from './components/TaskForm.jsx'
-import TaskFilters from './components/TaskFilters.jsx'
-import './App.css'
+  Clock,
+  Repeat
+} from 'lucide-react';
+import './App.css';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('dashboard')
-  const [tasks, setTasks] = useState([
-    { 
-      id: 1, 
-      title: 'Revisar relatório mensal', 
-      description: 'Revisar e aprovar o relatório de vendas do mês passado',
-      category: 'Trabalho', 
-      completed: false, 
-      priority: 'alta', 
-      dueDate: '2025-07-12' 
-    },
-    { 
-      id: 2, 
-      title: 'Exercitar-se por 30 min', 
-      description: 'Fazer exercícios cardiovasculares ou musculação',
-      category: 'Saúde', 
-      completed: true, 
-      priority: 'média', 
-      dueDate: '2025-07-12' 
-    },
-    { 
-      id: 3, 
-      title: 'Comprar ingredientes para jantar', 
-      description: 'Lista: tomate, cebola, alho, carne, temperos',
-      category: 'Pessoal', 
-      completed: false, 
-      priority: 'baixa', 
-      dueDate: '2025-07-12' 
-    },
-    { 
-      id: 4, 
-      title: 'Estudar React PWA', 
-      description: 'Aprender sobre service workers e cache strategies',
-      category: 'Desenvolvimento', 
-      completed: false, 
-      priority: 'alta', 
-      dueDate: '2025-07-13' 
-    }
-  ])
+  const [activeSection, setActiveSection] = useState('dashboard');
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const [showTaskForm, setShowTaskForm] = useState(false)
-  const [editingTask, setEditingTask] = useState(null)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filters, setFilters] = useState({
-    category: '',
-    priority: '',
-    status: ''
-  })
+  const { user, loading: authLoading } = useAuth();
+  const { 
+    tasks, 
+    loading: tasksLoading, 
+    addTask, 
+    updateTask, 
+    deleteTask, 
+    toggleTaskComplete,
+    getTaskStats 
+  } = useTasks();
 
-  // Filtrar e buscar tarefas
+  // Hook para gerenciar tarefas recorrentes
+  useRecurringTasks();
+
+  // Hook para integração com Google Calendar
+  const {
+    isAuthorized: isGoogleAuthorized,
+    authorize: authorizeGoogle,
+    syncTasksToCalendar,
+    loading: googleLoading,
+    error: googleError,
+    hasCredentials: hasGoogleCredentials
+  } = useGoogleCalendar();
+
+  // Filtrar tarefas baseado nos filtros ativos
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
-      // Filtro de busca
       const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           task.description?.toLowerCase().includes(searchTerm.toLowerCase())
+                           task.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = !categoryFilter || task.category === categoryFilter;
+      const matchesPriority = !priorityFilter || task.priority === priorityFilter;
+      const matchesStatus = !statusFilter || 
+                           (statusFilter === 'completed' && task.completed) ||
+                           (statusFilter === 'pending' && !task.completed);
       
-      // Filtros de categoria, prioridade e status
-      const matchesCategory = !filters.category || task.category === filters.category
-      const matchesPriority = !filters.priority || task.priority === filters.priority
-      const matchesStatus = !filters.status || 
-                           (filters.status === 'completed' && task.completed) ||
-                           (filters.status === 'pending' && !task.completed)
-      
-      return matchesSearch && matchesCategory && matchesPriority && matchesStatus
-    })
-  }, [tasks, searchTerm, filters])
+      return matchesSearch && matchesCategory && matchesPriority && matchesStatus;
+    });
+  }, [tasks, searchTerm, categoryFilter, priorityFilter, statusFilter]);
 
-  const completedTasks = tasks.filter(task => task.completed).length
-  const totalTasks = tasks.length
-  const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
+  const stats = getTaskStats();
 
-  const toggleTask = (id) => {
-    setTasks(tasks.map(task => 
-      task.id === id ? { ...task, completed: !task.completed } : task
-    ))
-  }
-
-  const addTask = (newTask) => {
-    setTasks([...tasks, newTask])
-  }
-
-  const updateTask = (updatedTask) => {
-    setTasks(tasks.map(task => 
-      task.id === updatedTask.id ? updatedTask : task
-    ))
-  }
-
-  const deleteTask = (id) => {
-    setTasks(tasks.filter(task => task.id !== id))
-  }
-
-  const handleTaskSubmit = (taskData) => {
-    if (editingTask) {
-      updateTask(taskData)
-    } else {
-      addTask(taskData)
+  const handleCreateTask = async (taskData) => {
+    try {
+      await addTask(taskData);
+      setShowTaskForm(false);
+    } catch (error) {
+      console.error('Erro ao criar tarefa:', error);
     }
-    setEditingTask(null)
-  }
+  };
 
-  const handleEditTask = (task) => {
-    setEditingTask(task)
-    setShowTaskForm(true)
-  }
+  const handleUpdateTask = async (taskData) => {
+    try {
+      await updateTask(editingTask.id, taskData);
+      setEditingTask(null);
+      setShowTaskForm(false);
+    } catch (error) {
+      console.error('Erro ao atualizar tarefa:', error);
+    }
+  };
 
-  const handleFilterChange = (filterType, value) => {
-    setFilters(prev => ({ ...prev, [filterType]: value }))
-  }
+  const handleDeleteTask = async (taskId) => {
+    if (window.confirm('Tem certeza que deseja excluir esta tarefa?')) {
+      try {
+        await deleteTask(taskId);
+      } catch (error) {
+        console.error('Erro ao excluir tarefa:', error);
+      }
+    }
+  };
 
-  const handleSearchChange = (value) => {
-    setSearchTerm(value)
-  }
+  const handleToggleComplete = async (taskId, completed) => {
+    try {
+      await toggleTaskComplete(taskId, completed);
+    } catch (error) {
+      console.error('Erro ao atualizar status da tarefa:', error);
+    }
+  };
+
+  // Função para sincronização com Google Calendar
+  const handleGoogleCalendarSync = async () => {
+    if (!hasGoogleCredentials) {
+      alert('Configurações do Google Calendar não encontradas. Verifique as variáveis de ambiente REACT_APP_GOOGLE_API_KEY e REACT_APP_GOOGLE_CLIENT_ID.');
+      return;
+    }
+
+    if (!isGoogleAuthorized) {
+      try {
+        await authorizeGoogle();
+      } catch (error) {
+        console.error('Erro na autorização:', error);
+        alert('Erro ao autorizar acesso ao Google Calendar: ' + error.message);
+      }
+      return;
+    }
+
+    try {
+      const tasksWithDates = tasks.filter(task => task.dueDate && !task.completed);
+      const results = await syncTasksToCalendar(tasksWithDates);
+      
+      const successful = results.filter(r => r.success).length;
+      const failed = results.filter(r => !r.success).length;
+      
+      alert(`Sincronização concluída!\n${successful} tarefas sincronizadas com sucesso.\n${failed} tarefas falharam.`);
+    } catch (error) {
+      console.error('Erro na sincronização:', error);
+      alert('Erro ao sincronizar com Google Calendar: ' + error.message);
+    }
+  };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'alta': return 'bg-red-100 text-red-800 border-red-200'
-      case 'média': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'baixa': return 'bg-green-100 text-green-800 border-green-200'
-      default: return 'bg-gray-100 text-gray-800 border-gray-200'
+      case 'alta': return 'bg-red-100 text-red-800';
+      case 'média': return 'bg-yellow-100 text-yellow-800';
+      case 'baixa': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
-  }
+  };
 
   const getCategoryColor = (category) => {
     switch (category) {
-      case 'Trabalho': return 'bg-blue-100 text-blue-800'
-      case 'Saúde': return 'bg-green-100 text-green-800'
-      case 'Pessoal': return 'bg-purple-100 text-purple-800'
-      case 'Desenvolvimento': return 'bg-orange-100 text-orange-800'
-      case 'Estudos': return 'bg-indigo-100 text-indigo-800'
-      case 'Casa': return 'bg-pink-100 text-pink-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'Trabalho': return 'bg-blue-100 text-blue-800';
+      case 'Pessoal': return 'bg-purple-100 text-purple-800';
+      case 'Saúde': return 'bg-green-100 text-green-800';
+      case 'Desenvolvimento': return 'bg-orange-100 text-orange-800';
+      case 'Estudos': return 'bg-indigo-100 text-indigo-800';
+      case 'Casa': return 'bg-pink-100 text-pink-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  // Loading state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando...</p>
+        </div>
+      </div>
+    );
   }
 
-  const TaskItem = ({ task, showActions = false }) => (
-    <div 
-      className={`flex items-center justify-between p-3 rounded-lg border transition-all hover:shadow-sm ${
-        task.completed ? 'bg-gray-50 opacity-75' : 'bg-white'
-      }`}
-    >
-      <div className="flex items-center gap-3 flex-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => toggleTask(task.id)}
-          className="p-0 h-auto"
-        >
-          <CheckCircle2 
-            className={`h-5 w-5 ${
-              task.completed ? 'text-green-600 fill-green-100' : 'text-gray-400'
-            }`}
-          />
-        </Button>
-        <div className="flex-1">
-          <p className={`font-medium ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}>
-            {task.title}
-          </p>
-          {task.description && (
-            <p className="text-sm text-gray-500 mt-1">{task.description}</p>
-          )}
-          <div className="flex gap-2 mt-2">
-            <Badge variant="secondary" className={getCategoryColor(task.category)}>
-              {task.category}
-            </Badge>
-            <Badge variant="outline" className={getPriorityColor(task.priority)}>
-              {task.priority}
-            </Badge>
-          </div>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        {showActions && (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleEditTask(task)}
-              className="h-8 w-8 p-0"
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => deleteTask(task.id)}
-              className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </>
-        )}
-        <div className="text-sm text-gray-500 ml-2">
-          {task.dueDate}
-        </div>
-      </div>
-    </div>
-  )
-
-  const renderDashboard = () => (
-    <div className="space-y-6">
-      {/* Header com saudação */}
-      <div className="text-center py-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Olá! Bem-vindo ao seu Planner
-        </h1>
-        <p className="text-gray-600">
-          Organize suas tarefas e alcance seus objetivos com facilidade
-        </p>
-      </div>
-
-      {/* Cards de estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tarefas Hoje</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalTasks}</div>
-            <p className="text-xs text-muted-foreground">
-              {completedTasks} concluídas
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Progresso</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{Math.round(progressPercentage)}%</div>
-            <Progress value={progressPercentage} className="mt-2" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Próximas</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {tasks.filter(task => !task.completed).length}
+  // Se não estiver autenticado, mostrar tela de boas-vindas
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white flex items-center justify-center">
+        <div className="max-w-md w-full mx-4">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ListTodo className="w-8 h-8 text-white" />
             </div>
-            <p className="text-xs text-muted-foreground">
-              tarefas pendentes
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Planner Intuitivo
+            </h1>
+            <p className="text-gray-600 mb-8">
+              Organize suas tarefas e alcance seus objetivos com facilidade
             </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Lista de tarefas do dia */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <List className="h-5 w-5" />
-            Tarefas de Hoje
-          </CardTitle>
-          <CardDescription>
-            Suas atividades programadas para hoje
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {tasks.slice(0, 5).map(task => (
-              <TaskItem key={task.id} task={task} />
-            ))}
           </div>
-          
-          <Button 
-            className="w-full mt-4" 
-            variant="outline"
-            onClick={() => setShowTaskForm(true)}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Adicionar Nova Tarefa
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  )
 
-  const renderTasks = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Todas as Tarefas</h2>
-        <Button onClick={() => setShowTaskForm(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nova Tarefa
-        </Button>
-      </div>
-      
-      <TaskFilters
-        onFilterChange={handleFilterChange}
-        onSearchChange={handleSearchChange}
-        activeFilters={filters}
-      />
-      
-      <div className="space-y-3">
-        {filteredTasks.length === 0 ? (
           <Card>
-            <CardContent className="p-8 text-center">
-              <p className="text-gray-500">Nenhuma tarefa encontrada</p>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  <span className="text-gray-700">Sincronização em tempo real</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  <span className="text-gray-700">Acesso de qualquer dispositivo</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  <span className="text-gray-700">Backup automático na nuvem</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  <span className="text-gray-700">Totalmente gratuito</span>
+                </div>
+              </div>
+
+              <Button 
+                className="w-full mt-6" 
+                onClick={() => setShowAuthModal(true)}
+              >
+                Começar Agora
+              </Button>
             </CardContent>
           </Card>
-        ) : (
-          filteredTasks.map(task => (
-            <Card key={task.id}>
-              <CardContent className="p-4">
-                <TaskItem task={task} showActions={true} />
-              </CardContent>
-            </Card>
-          ))
-        )}
+        </div>
+
+        <AuthModal 
+          isOpen={showAuthModal} 
+          onClose={() => setShowAuthModal(false)} 
+        />
       </div>
-    </div>
-  )
-
-  const renderCalendar = () => (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Calendário</h2>
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center py-12">
-            <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-            <p className="text-gray-500 mb-4">Vista do calendário será implementada em breve</p>
-            <p className="text-sm text-gray-400">
-              Aqui você poderá visualizar suas tarefas em formato de calendário
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-
-  const renderStats = () => (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Estatísticas</h2>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Progresso Geral</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between">
-                <span>Concluídas</span>
-                <span>{completedTasks}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Pendentes</span>
-                <span>{totalTasks - completedTasks}</span>
-              </div>
-              <div className="flex justify-between font-bold">
-                <span>Total</span>
-                <span>{totalTasks}</span>
-              </div>
-              <Progress value={progressPercentage} className="mt-4" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Por Categoria</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {['Trabalho', 'Pessoal', 'Saúde', 'Desenvolvimento'].map(category => {
-                const categoryTasks = tasks.filter(task => task.category === category)
-                const categoryCompleted = categoryTasks.filter(task => task.completed).length
-                const categoryProgress = categoryTasks.length > 0 ? (categoryCompleted / categoryTasks.length) * 100 : 0
-                
-                return (
-                  <div key={category}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>{category}</span>
-                      <span>{categoryCompleted}/{categoryTasks.length}</span>
-                    </div>
-                    <Progress value={categoryProgress} className="h-2" />
-                  </div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  )
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard': return renderDashboard()
-      case 'tasks': return renderTasks()
-      case 'calendar': return renderCalendar()
-      case 'stats': return renderStats()
-      default: return renderDashboard()
-    }
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-gray-900">
-                📋 Planner Intuitivo
-              </h1>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar */}
+      <div className="w-64 bg-white shadow-sm border-r border-gray-200 flex flex-col">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+              <ListTodo className="w-5 h-5 text-white" />
             </div>
-            <Button variant="ghost" size="sm">
-              <Settings className="h-4 w-4" />
-            </Button>
+            <h1 className="text-xl font-bold text-gray-900">Planner Intuitivo</h1>
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {renderContent()}
-      </main>
-
-      {/* Bottom Navigation (Mobile) */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t md:hidden">
-        <div className="grid grid-cols-4 h-16">
-          {[
-            { id: 'dashboard', icon: Home, label: 'Início' },
-            { id: 'tasks', icon: List, label: 'Tarefas' },
-            { id: 'calendar', icon: Calendar, label: 'Calendário' },
-            { id: 'stats', icon: BarChart3, label: 'Stats' }
-          ].map(({ id, icon: Icon, label }) => (
+        <nav className="flex-1 p-4">
+          <div className="space-y-2">
             <button
-              key={id}
-              onClick={() => setActiveTab(id)}
-              className={`flex flex-col items-center justify-center space-y-1 ${
-                activeTab === id ? 'text-blue-600' : 'text-gray-400'
+              onClick={() => setActiveSection('dashboard')}
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                activeSection === 'dashboard' 
+                  ? 'bg-indigo-100 text-indigo-700' 
+                  : 'text-gray-700 hover:bg-gray-100'
               }`}
             >
-              <Icon className="h-5 w-5" />
-              <span className="text-xs">{label}</span>
+              <Home className="w-5 h-5" />
+              <span>Dashboard</span>
+              <Badge variant="secondary" className="ml-auto">
+                {stats.total}
+              </Badge>
             </button>
-          ))}
-        </div>
-      </nav>
 
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:fixed md:inset-y-0 md:left-0 md:w-64 md:bg-white md:border-r md:flex md:flex-col">
-        <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
-          <div className="flex items-center flex-shrink-0 px-4">
-            <h1 className="text-xl font-bold text-gray-900">
-              📋 Planner Intuitivo
-            </h1>
+            <button
+              onClick={() => setActiveSection('tasks')}
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                activeSection === 'tasks' 
+                  ? 'bg-indigo-100 text-indigo-700' 
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <ListTodo className="w-5 h-5" />
+              <span>Tarefas</span>
+              <Badge variant="secondary" className="ml-auto">
+                {stats.pending}
+              </Badge>
+            </button>
+
+            <button
+              onClick={() => setActiveSection('calendar')}
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                activeSection === 'calendar' 
+                  ? 'bg-indigo-100 text-indigo-700' 
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <Calendar className="w-5 h-5" />
+              <span>Calendário</span>
+              <Badge variant="secondary" className="ml-auto">
+                {stats.today}
+              </Badge>
+            </button>
+
+            <button
+              onClick={() => setActiveSection('stats')}
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                activeSection === 'stats' 
+                  ? 'bg-indigo-100 text-indigo-700' 
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <BarChart3 className="w-5 h-5" />
+              <span>Estatísticas</span>
+              <Badge variant="secondary" className="ml-auto">
+                {stats.progress}%
+              </Badge>
+            </button>
           </div>
-          <nav className="mt-8 flex-1 px-2 space-y-1">
-            {[
-              { id: 'dashboard', icon: Home, label: 'Dashboard' },
-              { id: 'tasks', icon: List, label: 'Tarefas' },
-              { id: 'calendar', icon: Calendar, label: 'Calendário' },
-              { id: 'stats', icon: BarChart3, label: 'Estatísticas' }
-            ].map(({ id, icon: Icon, label }) => (
-              <button
-                key={id}
-                onClick={() => setActiveTab(id)}
-                className={`w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                  activeTab === id
-                    ? 'bg-blue-100 text-blue-900'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-              >
-                <Icon className="mr-3 h-5 w-5" />
-                {label}
-              </button>
-            ))}
-          </nav>
-        </div>
-      </aside>
+        </nav>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        <UserHeader />
+
+        <main className="flex-1 p-6">
+          {activeSection === 'dashboard' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Olá! Bem-vindo ao seu Planner
+                  </h2>
+                  <p className="text-gray-600">
+                    Organize suas tarefas e alcance seus objetivos com facilidade
+                  </p>
+                </div>
+                <Button onClick={() => setShowTaskForm(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nova Tarefa
+                </Button>
+              </div>
+
+              {/* Cards de estatísticas */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Tarefas Hoje</CardTitle>
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.today}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {stats.completed} concluídas
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Progresso</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.progress}%</div>
+                    <Progress value={stats.progress} className="mt-2" />
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total</CardTitle>
+                    <ListTodo className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.total}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {stats.completed} concluídas
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Próximas</CardTitle>
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.pending}</div>
+                    <p className="text-xs text-muted-foreground">
+                      tarefas pendentes
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Lista de tarefas recentes */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <ListTodo className="w-5 h-5" />
+                    <span>Tarefas de Hoje</span>
+                  </CardTitle>
+                  <p className="text-sm text-gray-600">
+                    Suas atividades programadas para hoje
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  {tasksLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="flex items-center space-x-3">
+                          <div className="w-5 h-5 bg-gray-200 rounded-full animate-pulse"></div>
+                          <div className="flex-1 h-4 bg-gray-200 rounded animate-pulse"></div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : tasks.length === 0 ? (
+                    <div className="text-center py-8">
+                      <ListTodo className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 mb-4">Nenhuma tarefa criada ainda</p>
+                      <Button onClick={() => setShowTaskForm(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Criar primeira tarefa
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {tasks.slice(0, 5).map(task => (
+                        <div key={task.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                          <button
+                            onClick={() => handleToggleComplete(task.id, !task.completed)}
+                            className="flex-shrink-0"
+                          >
+                            {task.completed ? (
+                              <CheckCircle2 className="w-5 h-5 text-green-500" />
+                            ) : (
+                              <Circle className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+                            )}
+                          </button>
+                          
+                          <div className="flex-1 min-w-0">
+                            <h3 className={`font-medium ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                              {task.title}
+                            </h3>
+                            <p className="text-sm text-gray-600 truncate">
+                              {task.description}
+                            </p>
+                            <div className="flex items-center space-x-2 mt-1">
+                              <Badge className={getCategoryColor(task.category)}>
+                                {task.category}
+                              </Badge>
+                              <Badge className={getPriorityColor(task.priority)}>
+                                {task.priority}
+                              </Badge>
+                              {task.recurrence && task.recurrence.type !== 'none' && (
+                                <Badge variant="outline" className="text-xs">
+                                  <Repeat className="w-3 h-3 mr-1" />
+                                  {formatRecurrenceDescription(task.recurrence)}
+                                </Badge>
+                              )}
+                              {task.isRecurringInstance && (
+                                <Badge variant="secondary" className="text-xs">
+                                  <Repeat className="w-3 h-3 mr-1" />
+                                  Instância
+                                </Badge>
+                              )}
+                              {task.dueDate && (
+                                <span className="text-xs text-gray-500">
+                                  {new Date(task.dueDate).toLocaleDateString('pt-BR')}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {tasks.length > 5 && (
+                        <Button 
+                          variant="outline" 
+                          className="w-full"
+                          onClick={() => setActiveSection('tasks')}
+                        >
+                          Ver todas as tarefas ({tasks.length})
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {activeSection === 'tasks' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Todas as Tarefas</h2>
+                <Button onClick={() => setShowTaskForm(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nova Tarefa
+                </Button>
+              </div>
+
+              <TaskFilters
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                categoryFilter={categoryFilter}
+                setCategoryFilter={setCategoryFilter}
+                priorityFilter={priorityFilter}
+                setPriorityFilter={setPriorityFilter}
+                statusFilter={statusFilter}
+                setStatusFilter={setStatusFilter}
+              />
+
+              {tasksLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <Card key={i}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-5 h-5 bg-gray-200 rounded-full animate-pulse"></div>
+                          <div className="flex-1 space-y-2">
+                            <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                            <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4"></div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : filteredTasks.length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <ListTodo className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500 mb-4">
+                      {tasks.length === 0 ? 'Nenhuma tarefa criada ainda' : 'Nenhuma tarefa encontrada com os filtros aplicados'}
+                    </p>
+                    <Button onClick={() => setShowTaskForm(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Criar nova tarefa
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-4">
+                  {filteredTasks.map(task => (
+                    <Card key={task.id}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start space-x-3">
+                          <button
+                            onClick={() => handleToggleComplete(task.id, !task.completed)}
+                            className="flex-shrink-0 mt-1"
+                          >
+                            {task.completed ? (
+                              <CheckCircle2 className="w-5 h-5 text-green-500" />
+                            ) : (
+                              <Circle className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+                            )}
+                          </button>
+                          
+                          <div className="flex-1 min-w-0">
+                            <h3 className={`font-medium ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                              {task.title}
+                            </h3>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {task.description}
+                            </p>
+                            <div className="flex items-center space-x-2 mt-2">
+                              <Badge className={getCategoryColor(task.category)}>
+                                {task.category}
+                              </Badge>
+                              <Badge className={getPriorityColor(task.priority)}>
+                                {task.priority}
+                              </Badge>
+                              {task.dueDate && (
+                                <span className="text-xs text-gray-500">
+                                  {new Date(task.dueDate).toLocaleDateString('pt-BR')}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingTask(task);
+                                setShowTaskForm(true);
+                              }}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteTask(task.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeSection === 'calendar' && (
+            <CalendarView
+              tasks={tasks}
+              onTaskCreate={handleAddTask}
+              onTaskUpdate={handleUpdateTask}
+              onTaskDelete={handleDeleteTask}
+              onGoogleCalendarSync={handleGoogleCalendarSync}
+            />
+          )}
+
+          {activeSection === 'stats' && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold text-gray-900">Estatísticas</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Progresso Geral</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex justify-between">
+                      <span>Concluídas</span>
+                      <span className="font-medium">{stats.completed}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Pendentes</span>
+                      <span className="font-medium">{stats.pending}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total</span>
+                      <span className="font-medium">{stats.total}</span>
+                    </div>
+                    <Progress value={stats.progress} className="mt-4" />
+                    <p className="text-center text-sm text-gray-600">
+                      {stats.progress}% concluído
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Por Categoria</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {stats.categoryStats.map(category => (
+                      <div key={category.category}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span>{category.category}</span>
+                          <span>{category.completed}/{category.total}</span>
+                        </div>
+                        <Progress value={category.progress} className="h-2" />
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
 
       {/* Task Form Modal */}
-      <TaskForm
-        isOpen={showTaskForm}
-        onClose={() => {
-          setShowTaskForm(false)
-          setEditingTask(null)
-        }}
-        onSubmit={handleTaskSubmit}
-        task={editingTask}
-      />
-
-      {/* Adjust main content for desktop sidebar */}
-      <style jsx>{`
-        @media (min-width: 768px) {
-          main {
-            margin-left: 16rem;
-          }
-        }
-      `}</style>
+      {showTaskForm && (
+        <TaskForm
+          isOpen={showTaskForm}
+          onClose={() => {
+            setShowTaskForm(false);
+            setEditingTask(null);
+          }}
+          onSubmit={editingTask ? handleUpdateTask : handleCreateTask}
+          initialData={editingTask}
+        />
+      )}
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
 

@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import { Input } from '@/components/ui/input.jsx'
-import { Button } from '@/components/ui/button.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
-import { Search, Filter, X } from 'lucide-react'
+import { useState } from 'react';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Search, Filter, X } from 'lucide-react';
 
 const TaskFilters = ({ onFilterChange, onSearchChange, activeFilters = {} }) => {
   const [searchTerm, setSearchTerm] = useState('')

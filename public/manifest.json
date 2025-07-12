@@ -1,7 +1,7 @@
 {
-  "name": "Planner Intuitivo - Organize sua vida com facilidade",
+  "name": "Planner Intuitivo - O Melhor App de Planner Gratuito",
   "short_name": "Planner Intuitivo",
-  "description": "Um planner digital responsivo e intuitivo para organizar suas tarefas e alcançar seus objetivos",
+  "description": "Organize sua vida com facilidade. Tarefas recorrentes, calendário integrado, sincronização com Google Calendar e muito mais.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f8fafc",
@@ -9,7 +9,7 @@
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "pt-BR",
-  "categories": ["productivity", "lifestyle"],
+  "categories": ["productivity", "lifestyle", "utilities"],
   "icons": [
     {
       "src": "/icon-192.svg",
@@ -29,16 +29,18 @@
       "src": "/screenshot-mobile.png",
       "sizes": "390x844",
       "type": "image/png",
-      "form_factor": "narrow"
+      "form_factor": "narrow",
+      "label": "Interface mobile do Planner Intuitivo"
     },
     {
       "src": "/screenshot-desktop.png",
       "sizes": "1280x720",
       "type": "image/png",
-      "form_factor": "wide"
+      "form_factor": "wide",
+      "label": "Interface desktop do Planner Intuitivo"
     }
   ],
-      "shortcuts": [
+  "shortcuts": [
     {
       "name": "Nova Tarefa",
       "short_name": "Nova Tarefa",
@@ -62,8 +64,46 @@
           "sizes": "192x192"
         }
       ]
+    },
+    {
+      "name": "Calendário",
+      "short_name": "Calendário",
+      "description": "Visualizar calendário de tarefas",
+      "url": "/?section=calendar",
+      "icons": [
+        {
+          "src": "/icon-192.svg",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Estatísticas",
+      "short_name": "Stats",
+      "description": "Ver estatísticas de produtividade",
+      "url": "/?section=stats",
+      "icons": [
+        {
+          "src": "/icon-192.svg",
+          "sizes": "192x192"
+        }
+      ]
     }
   ],
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "handle_links": "preferred",
+  "protocol_handlers": [
+    {
+      "protocol": "web+planner",
+      "url": "/?task=%s"
+    }
+  ]
 }
 
