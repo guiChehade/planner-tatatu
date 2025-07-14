@@ -1,220 +1,198 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Calendar } from './ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { RecurrenceConfig } from './RecurrenceConfig';
-import { CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { RECURRENCE_TYPES } from '../utils/recurrence';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { X } from 'lucide-react';
 
-export const TaskForm = ({ isOpen, onClose, onSubmit, initialData }) => {
+export const TaskForm = ({ task, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     category: 'Pessoal',
     priority: 'média',
-    dueDate: null,
-    recurrence: { type: RECURRENCE_TYPES.NONE }
+    dueDate: new Date().toISOString().split('T')[0]
   });
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
+  // Preencher formulário quando editando
   useEffect(() => {
-    if (initialData) {
+    if (task) {
       setFormData({
-        title: initialData.title || '',
-        description: initialData.description || '',
-        category: initialData.category || 'Pessoal',
-        priority: initialData.priority || 'média',
-        dueDate: initialData.dueDate ? new Date(initialData.dueDate) : null,
-        recurrence: initialData.recurrence || { type: RECURRENCE_TYPES.NONE }
-      });
-    } else {
-      setFormData({
-        title: '',
-        description: '',
-        category: 'Pessoal',
-        priority: 'média',
-        dueDate: null,
-        recurrence: { type: RECURRENCE_TYPES.NONE }
+        title: task.title || '',
+        description: task.description || '',
+        category: task.category || 'Pessoal',
+        priority: task.priority || 'média',
+        dueDate: task.dueDate || new Date().toISOString().split('T')[0]
       });
     }
-  }, [initialData, isOpen]);
+  }, [task]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     
+    // Validação simples
+    const newErrors = {};
     if (!formData.title.trim()) {
-      alert('Por favor, insira um título para a tarefa');
+      newErrors.title = 'Título é obrigatório';
+    }
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
-    setIsLoading(true);
+    // Submeter dados
+    onSubmit(formData);
+    
+    // Resetar formulário
+    setFormData({
+      title: '',
+      description: '',
+      category: 'Pessoal',
+      priority: 'média',
+      dueDate: new Date().toISOString().split('T')[0]
+    });
+    setErrors({});
+  };
 
-    try {
-      await onSubmit(formData);
-      // Reset form
-      setFormData({
-        title: '',
-        description: '',
-        category: 'Pessoal',
-        priority: 'média',
-        dueDate: null,
-        recurrence: { type: RECURRENCE_TYPES.NONE }
-      });
-    } catch (error) {
-      console.error('Erro ao salvar tarefa:', error);
-      alert('Erro ao salvar tarefa. Tente novamente.');
-    } finally {
-      setIsLoading(false);
+  const handleChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Limpar erro quando usuário começar a digitar
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
 
-  const categories = [
-    'Trabalho',
-    'Pessoal', 
-    'Saúde',
-    'Desenvolvimento',
-    'Estudos',
-    'Casa'
-  ];
-
-  const priorities = [
-    { value: 'baixa', label: 'Baixa' },
-    { value: 'média', label: 'Média' },
-    { value: 'alta', label: 'Alta' }
-  ];
-
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+    <Dialog open={true} onOpenChange={onCancel}>
+      <DialogContent className="sm:max-w-[500px] dark:bg-gray-800 dark:border-gray-700">
         <DialogHeader>
-          <DialogTitle>
-            {initialData ? 'Editar Tarefa' : 'Nova Tarefa'}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-gray-900 dark:text-white">
+              {task ? 'Editar Tarefa' : 'Nova Tarefa'}
+            </DialogTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onCancel}
+              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {task ? 'Edite os detalhes da tarefa' : 'Adicione uma nova tarefa ao seu planner'}
+          </p>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Título */}
           <div className="space-y-2">
-            <Label htmlFor="title">Título *</Label>
+            <Label htmlFor="title" className="text-gray-900 dark:text-white">
+              Título *
+            </Label>
             <Input
               id="title"
-              type="text"
-              placeholder="Digite o título da tarefa"
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              required
+              onChange={(e) => handleChange('title', e.target.value)}
+              placeholder="Ex: Revisar relatório mensal"
+              className={`dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                errors.title ? 'border-red-500' : ''
+              }`}
             />
+            {errors.title && (
+              <p className="text-sm text-red-500">{errors.title}</p>
+            )}
           </div>
 
+          {/* Descrição */}
           <div className="space-y-2">
-            <Label htmlFor="description">Descrição</Label>
+            <Label htmlFor="description" className="text-gray-900 dark:text-white">
+              Descrição
+            </Label>
             <Textarea
               id="description"
-              placeholder="Descreva os detalhes da tarefa"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) => handleChange('description', e.target.value)}
+              placeholder="Detalhes adicionais sobre a tarefa..."
               rows={3}
+              className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>
 
+          {/* Categoria e Prioridade */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Categoria</Label>
-              <Select 
-                value={formData.category} 
-                onValueChange={(value) => setFormData({ ...formData, category: value })}
+              <Label className="text-gray-900 dark:text-white">Categoria</Label>
+              <Select
+                value={formData.category}
+                onValueChange={(value) => handleChange('category', value)}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma categoria" />
+                <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                  <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  {categories.map(category => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
+                <SelectContent className="dark:bg-gray-700 dark:border-gray-600">
+                  <SelectItem value="Trabalho">Trabalho</SelectItem>
+                  <SelectItem value="Pessoal">Pessoal</SelectItem>
+                  <SelectItem value="Saúde">Saúde</SelectItem>
+                  <SelectItem value="Desenvolvimento">Desenvolvimento</SelectItem>
+                  <SelectItem value="Estudos">Estudos</SelectItem>
+                  <SelectItem value="Casa">Casa</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label>Prioridade</Label>
-              <Select 
-                value={formData.priority} 
-                onValueChange={(value) => setFormData({ ...formData, priority: value })}
+              <Label className="text-gray-900 dark:text-white">Prioridade</Label>
+              <Select
+                value={formData.priority}
+                onValueChange={(value) => handleChange('priority', value)}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a prioridade" />
+                <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                  <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  {priorities.map(priority => (
-                    <SelectItem key={priority.value} value={priority.value}>
-                      {priority.label}
-                    </SelectItem>
-                  ))}
+                <SelectContent className="dark:bg-gray-700 dark:border-gray-600">
+                  <SelectItem value="baixa">Baixa</SelectItem>
+                  <SelectItem value="média">Média</SelectItem>
+                  <SelectItem value="alta">Alta</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
+          {/* Data de Vencimento */}
           <div className="space-y-2">
-            <Label>Data de Vencimento</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {formData.dueDate ? (
-                    format(formData.dueDate, "PPP", { locale: ptBR })
-                  ) : (
-                    <span>Selecione uma data</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.dueDate}
-                  onSelect={(date) => setFormData({ ...formData, dueDate: date })}
-                  initialFocus
-                />
-                {formData.dueDate && (
-                  <div className="p-3 border-t">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setFormData({ ...formData, dueDate: null })}
-                      className="w-full"
-                    >
-                      Remover data
-                    </Button>
-                  </div>
-                )}
-              </PopoverContent>
-            </Popover>
+            <Label htmlFor="dueDate" className="text-gray-900 dark:text-white">
+              Data de Vencimento
+            </Label>
+            <Input
+              id="dueDate"
+              type="date"
+              value={formData.dueDate}
+              onChange={(e) => handleChange('dueDate', e.target.value)}
+              className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            />
           </div>
 
-          {/* Configuração de Recorrência */}
-          <RecurrenceConfig
-            value={formData.recurrence}
-            onChange={(recurrence) => setFormData({ ...formData, recurrence })}
-          />
-
-          <div className="flex space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+          {/* Botões */}
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isLoading} className="flex-1">
-              {isLoading ? 'Salvando...' : (initialData ? 'Atualizar' : 'Criar Tarefa')}
+            <Button
+              type="submit"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              {task ? 'Salvar Alterações' : 'Criar Tarefa'}
             </Button>
           </div>
         </form>

@@ -1,399 +1,262 @@
-import { useState, useMemo, useCallback } from 'react';
-import { Calendar, momentLocalizer } from 'react-big-calendar';
-import moment from 'moment';
-import 'moment/locale/pt-br';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { TaskForm } from './TaskForm';
 import { 
   Calendar as CalendarIcon, 
-  Plus, 
-  ExternalLink,
-  RefreshCw,
-  Settings
+  ChevronLeft, 
+  ChevronRight,
+  Plus
 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
-// Configurar moment para português
-moment.locale('pt-br');
-const localizer = momentLocalizer(moment);
+export const CalendarView = ({ tasks, onTaskCreate, onTaskUpdate, onTaskDelete }) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [view, setView] = useState('month'); // month, week, day
 
-export const CalendarView = ({ 
-  tasks = [], 
-  onTaskCreate, 
-  onTaskUpdate, 
-  onTaskDelete,
-  onGoogleCalendarRefreshCw 
-}) => {
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [showTaskForm, setShowTaskForm] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [view, setView] = useState('month');
-  const [date, setDate] = useState(new Date());
+  // Navegar entre meses
+  const navigateMonth = (direction) => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(currentDate.getMonth() + direction);
+    setCurrentDate(newDate);
+  };
 
-  // Converter tarefas para eventos do calendário
-  const events = useMemo(() => {
-    return tasks.map(task => {
-      const startDate = task.dueDate ? new Date(task.dueDate) : new Date(task.createdAt);
-      const endDate = new Date(startDate);
-      endDate.setHours(startDate.getHours() + 1); // Duração padrão de 1 hora
+  // Obter dias do mês atual
+  const getDaysInMonth = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
 
-      return {
-        id: task.id,
-        title: task.title,
-        start: startDate,
-        end: endDate,
-        resource: task,
-        allDay: !task.dueDate || !task.dueDate.includes('T'), // Se não tem horário específico, é dia inteiro
-      };
-    });
-  }, [tasks]);
+    const days = [];
+    
+    // Dias do mês anterior (para completar a primeira semana)
+    for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+      const prevDate = new Date(year, month, -i);
+      days.push({
+        date: prevDate,
+        isCurrentMonth: false,
+        tasks: getTasksForDate(prevDate)
+      });
+    }
+    
+    // Dias do mês atual
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      days.push({
+        date,
+        isCurrentMonth: true,
+        tasks: getTasksForDate(date)
+      });
+    }
+    
+    // Dias do próximo mês (para completar a última semana)
+    const remainingDays = 42 - days.length; // 6 semanas * 7 dias
+    for (let day = 1; day <= remainingDays; day++) {
+      const nextDate = new Date(year, month + 1, day);
+      days.push({
+        date: nextDate,
+        isCurrentMonth: false,
+        tasks: getTasksForDate(nextDate)
+      });
+    }
+    
+    return days;
+  };
 
-  // Cores para diferentes categorias
+  // Obter tarefas para uma data específica
+  const getTasksForDate = (date) => {
+    const dateString = date.toISOString().split('T')[0];
+    return tasks.filter(task => task.dueDate === dateString);
+  };
+
+  // Cores das categorias
   const getCategoryColor = (category) => {
     const colors = {
-      'Trabalho': '#3b82f6',
-      'Pessoal': '#10b981',
-      'Saúde': '#f59e0b',
-      'Desenvolvimento': '#8b5cf6',
-      'Estudos': '#ef4444',
-      'Casa': '#6b7280'
+      'Trabalho': 'bg-blue-500',
+      'Pessoal': 'bg-purple-500',
+      'Saúde': 'bg-green-500',
+      'Desenvolvimento': 'bg-orange-500',
+      'Estudos': 'bg-yellow-500',
+      'Casa': 'bg-pink-500'
     };
-    return colors[category] || '#6b7280';
+    return colors[category] || 'bg-gray-500';
   };
 
-  // Estilo personalizado para eventos
-  const eventStyleGetter = useCallback((event) => {
-    const task = event.resource;
-    const backgroundColor = getCategoryColor(task.category);
-    
-    return {
-      style: {
-        backgroundColor,
-        borderRadius: '4px',
-        opacity: task.completed ? 0.6 : 1,
-        color: 'white',
-        border: 'none',
-        fontSize: '12px',
-        textDecoration: task.completed ? 'line-through' : 'none'
-      }
-    };
-  }, []);
-
-  // Manipular seleção de evento
-  const handleSelectEvent = useCallback((event) => {
-    setSelectedEvent(event);
-  }, []);
-
-  // Manipular seleção de slot (data/horário vazio)
-  const handleSelectSlot = useCallback(({ start, end }) => {
-    setSelectedDate(start);
-    setShowTaskForm(true);
-  }, []);
-
-  // Manipular criação de tarefa
-  const handleTaskCreate = async (taskData) => {
-    const newTask = {
-      ...taskData,
-      dueDate: selectedDate || taskData.dueDate,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    await onTaskCreate(newTask);
-    setShowTaskForm(false);
-    setSelectedDate(null);
-  };
-
-  // Manipular atualização de tarefa
-  const handleTaskUpdate = async (taskData) => {
-    if (selectedEvent) {
-      await onTaskUpdate(selectedEvent.resource.id, taskData);
-      setSelectedEvent(null);
-    }
-  };
-
-  // Manipular exclusão de tarefa
-  const handleTaskDelete = async () => {
-    if (selectedEvent) {
-      await onTaskDelete(selectedEvent.resource.id);
-      setSelectedEvent(null);
-    }
-  };
-
-  // Componentes personalizados do calendário
-  const CustomToolbar = ({ label, onNavigate, onView }) => (
-    <div className="flex items-center justify-between mb-4 p-4 bg-gray-50 rounded-lg">
-      <div className="flex items-center space-x-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onNavigate('PREV')}
-        >
-          ←
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onNavigate('TODAY')}
-        >
-          Hoje
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onNavigate('NEXT')}
-        >
-          →
-        </Button>
-      </div>
-      
-      <h3 className="text-lg font-semibold">{label}</h3>
-      
-      <div className="flex items-center space-x-2">
-        <Button
-          variant={view === 'month' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => onView('month')}
-        >
-          Mês
-        </Button>
-        <Button
-          variant={view === 'week' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => onView('week')}
-        >
-          Semana
-        </Button>
-        <Button
-          variant={view === 'day' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => onView('day')}
-        >
-          Dia
-        </Button>
-      </div>
-    </div>
-  );
-
-  // Mensagens personalizadas em português
-  const messages = {
-    allDay: 'Dia inteiro',
-    previous: 'Anterior',
-    next: 'Próximo',
-    today: 'Hoje',
-    month: 'Mês',
-    week: 'Semana',
-    day: 'Dia',
-    agenda: 'Agenda',
-    date: 'Data',
-    time: 'Hora',
-    event: 'Evento',
-    noEventsInRange: 'Não há eventos neste período',
-    showMore: total => `+ ${total} mais`
-  };
+  const days = getDaysInMonth();
+  const monthNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+  const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
   return (
     <div className="space-y-6">
-      {/* Cabeçalho */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <CalendarIcon className="w-6 h-6" />
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Calendário</h2>
-            <p className="text-gray-600">Visualize suas tarefas em formato de calendário</p>
-          </div>
-        </div>
-        
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Calendário</h2>
         <div className="flex items-center space-x-2">
           <Button
             variant="outline"
-            onClick={onGoogleCalendarRefreshCw}
-            className="flex items-center space-x-2"
+            size="sm"
+            onClick={() => setView(view === 'month' ? 'week' : 'month')}
+            className="dark:border-gray-600 dark:text-gray-300"
           >
-            <RefreshCw className="w-4 h-4" />
-            <span>Sincronizar Google Calendar</span>
-          </Button>
-          
-          <Button
-            onClick={() => setShowTaskForm(true)}
-            className="flex items-center space-x-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nova Tarefa</span>
+            {view === 'month' ? 'Visão Semanal' : 'Visão Mensal'}
           </Button>
         </div>
       </div>
 
-      {/* Estatísticas rápidas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total de Tarefas</p>
-                <p className="text-2xl font-bold">{tasks.length}</p>
-              </div>
-              <CalendarIcon className="w-8 h-8 text-blue-500" />
+      <Card className="dark:bg-gray-800 dark:border-gray-700">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center text-gray-900 dark:text-white">
+              <CalendarIcon className="w-5 h-5 mr-2" />
+              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+            </CardTitle>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigateMonth(-1)}
+                className="dark:border-gray-600 dark:text-gray-300"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentDate(new Date())}
+                className="dark:border-gray-600 dark:text-gray-300"
+              >
+                Hoje
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigateMonth(1)}
+                className="dark:border-gray-600 dark:text-gray-300"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
             </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Este Mês</p>
-                <p className="text-2xl font-bold">
-                  {tasks.filter(task => {
-                    const taskDate = new Date(task.dueDate || task.createdAt);
-                    const now = new Date();
-                    return taskDate.getMonth() === now.getMonth() && 
-                           taskDate.getFullYear() === now.getFullYear();
-                  }).length}
-                </p>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Cabeçalho dos dias da semana */}
+          <div className="grid grid-cols-7 gap-1 mb-2">
+            {dayNames.map(day => (
+              <div key={day} className="p-2 text-center text-sm font-medium text-gray-600 dark:text-gray-400">
+                {day}
               </div>
-              <CalendarIcon className="w-8 h-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Concluídas</p>
-                <p className="text-2xl font-bold">
-                  {tasks.filter(task => task.completed).length}
-                </p>
-              </div>
-              <CalendarIcon className="w-8 h-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Pendentes</p>
-                <p className="text-2xl font-bold">
-                  {tasks.filter(task => !task.completed).length}
-                </p>
-              </div>
-              <CalendarIcon className="w-8 h-8 text-orange-500" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            ))}
+          </div>
 
-      {/* Calendário */}
-      <Card>
-        <CardContent className="p-6">
-          <div style={{ height: '600px' }}>
-            <Calendar
-              localizer={localizer}
-              events={events}
-              startAccessor="start"
-              endAccessor="end"
-              style={{ height: '100%' }}
-              onSelectEvent={handleSelectEvent}
-              onSelectSlot={handleSelectSlot}
-              selectable
-              eventPropGetter={eventStyleGetter}
-              view={view}
-              onView={setView}
-              date={date}
-              onNavigate={setDate}
-              messages={messages}
-              components={{
-                toolbar: CustomToolbar
-              }}
-              formats={{
-                dayFormat: 'DD',
-                dayHeaderFormat: 'dddd',
-                monthHeaderFormat: 'MMMM YYYY',
-                dayRangeHeaderFormat: ({ start, end }) => 
-                  `${moment(start).format('DD MMM')} - ${moment(end).format('DD MMM YYYY')}`
-              }}
-            />
+          {/* Grade do calendário */}
+          <div className="grid grid-cols-7 gap-1">
+            {days.map((day, index) => {
+              const isToday = day.date.toDateString() === new Date().toDateString();
+              const hasEvents = day.tasks.length > 0;
+              
+              return (
+                <div
+                  key={index}
+                  className={`min-h-[100px] p-2 border border-gray-200 dark:border-gray-600 rounded-lg transition-colors ${
+                    day.isCurrentMonth 
+                      ? 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600' 
+                      : 'bg-gray-50 dark:bg-gray-800 text-gray-400'
+                  } ${isToday ? 'ring-2 ring-indigo-500' : ''}`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-sm font-medium ${
+                      isToday ? 'text-indigo-600 dark:text-indigo-400' : 
+                      day.isCurrentMonth ? 'text-gray-900 dark:text-white' : 'text-gray-400'
+                    }`}>
+                      {day.date.getDate()}
+                    </span>
+                    {day.isCurrentMonth && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-5 h-5 p-0 opacity-0 group-hover:opacity-100 hover:bg-indigo-100 dark:hover:bg-indigo-900"
+                        onClick={() => {
+                          // Criar nova tarefa para esta data
+                          const taskData = {
+                            title: '',
+                            description: '',
+                            category: 'Pessoal',
+                            priority: 'média',
+                            dueDate: day.date.toISOString().split('T')[0]
+                          };
+                          onTaskCreate(taskData);
+                        }}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {/* Tarefas do dia */}
+                  <div className="space-y-1">
+                    {day.tasks.slice(0, 3).map(task => (
+                      <div
+                        key={task.id}
+                        className={`text-xs p-1 rounded truncate ${getCategoryColor(task.category)} text-white`}
+                        title={task.title}
+                      >
+                        {task.title}
+                      </div>
+                    ))}
+                    {day.tasks.length > 3 && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        +{day.tasks.length - 3} mais
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
 
-      {/* Modal de detalhes da tarefa */}
-      {selectedEvent && (
-        <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Detalhes da Tarefa</DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-semibold text-lg">{selectedEvent.resource.title}</h3>
-                <p className="text-gray-600">{selectedEvent.resource.description}</p>
+      {/* Lista de tarefas do dia selecionado */}
+      <Card className="dark:bg-gray-800 dark:border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-gray-900 dark:text-white">
+            Tarefas de Hoje ({new Date().toLocaleDateString('pt-BR')})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {(() => {
+            const todayTasks = getTasksForDate(new Date());
+            return todayTasks.length === 0 ? (
+              <p className="text-gray-500 dark:text-gray-400 text-center py-4">
+                Nenhuma tarefa programada para hoje
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {todayTasks.map(task => (
+                  <div key={task.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900 dark:text-white">{task.title}</h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{task.description}</p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge className={`${getCategoryColor(task.category)} text-white`}>
+                        {task.category}
+                      </Badge>
+                      <Badge variant={task.priority === 'alta' ? 'destructive' : 'secondary'}>
+                        {task.priority}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
               </div>
-              
-              <div className="flex items-center space-x-2">
-                <Badge className={getCategoryColor(selectedEvent.resource.category)}>
-                  {selectedEvent.resource.category}
-                </Badge>
-                <Badge variant="outline">
-                  {selectedEvent.resource.priority}
-                </Badge>
-                {selectedEvent.resource.completed && (
-                  <Badge variant="secondary">Concluída</Badge>
-                )}
-              </div>
-              
-              {selectedEvent.resource.dueDate && (
-                <div>
-                  <p className="text-sm text-gray-600">Data de vencimento:</p>
-                  <p className="font-medium">
-                    {format(new Date(selectedEvent.resource.dueDate), 'PPP', { locale: ptBR })}
-                  </p>
-                </div>
-              )}
-              
-              <div className="flex space-x-2 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowTaskForm(true);
-                    // Preparar para edição
-                  }}
-                  className="flex-1"
-                >
-                  Editar
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleTaskDelete}
-                  className="flex-1"
-                >
-                  Excluir
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Modal de criação/edição de tarefa */}
-      <TaskForm
-        isOpen={showTaskForm}
-        onClose={() => {
-          setShowTaskForm(false);
-          setSelectedDate(null);
-        }}
-        onSubmit={handleTaskCreate}
-        initialData={selectedDate ? { dueDate: selectedDate } : null}
-      />
+            );
+          })()}
+        </CardContent>
+      </Card>
     </div>
   );
 };

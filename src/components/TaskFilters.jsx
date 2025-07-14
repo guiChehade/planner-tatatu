@@ -6,109 +6,84 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Search, Filter, X } from 'lucide-react';
 
 const TaskFilters = ({ onFilterChange, onSearchChange, activeFilters = {} }) => {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [showFilters, setShowFilters] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   const handleSearchChange = (value) => {
-    setSearchTerm(value)
-    onSearchChange(value)
-  }
+    setSearchTerm(value);
+    onSearchChange(value);
+  };
 
   const handleFilterChange = (filterType, value) => {
-    onFilterChange(filterType, value)
-  }
+    onFilterChange(filterType, value);
+  };
 
-  const clearFilter = (filterType) => {
-    onFilterChange(filterType, '')
-  }
+  const clearFilters = () => {
+    setSearchTerm('');
+    onSearchChange('');
+    onFilterChange('category', '');
+    onFilterChange('priority', '');
+    onFilterChange('status', '');
+  };
 
-  const clearAllFilters = () => {
-    setSearchTerm('')
-    onSearchChange('')
-    Object.keys(activeFilters).forEach(filter => {
-      onFilterChange(filter, '')
-    })
-  }
-
-  const activeFilterCount = Object.values(activeFilters).filter(Boolean).length
+  const hasActiveFilters = Object.values(activeFilters).some(value => value) || searchTerm;
 
   return (
     <div className="space-y-4">
       {/* Barra de busca */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <Input
-          placeholder="Buscar tarefas..."
-          value={searchTerm}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-
-      {/* Botão de filtros */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center space-x-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Input
+            placeholder="Buscar tarefas..."
+            value={searchTerm}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="pl-10 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+          />
+        </div>
+        
         <Button
           variant="outline"
-          size="sm"
           onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2"
+          className="dark:border-gray-600 dark:text-gray-300"
         >
-          <Filter className="h-4 w-4" />
+          <Filter className="w-4 h-4 mr-2" />
           Filtros
-          {activeFilterCount > 0 && (
-            <Badge variant="secondary" className="ml-1">
-              {activeFilterCount}
+          {hasActiveFilters && (
+            <Badge variant="secondary" className="ml-2">
+              {Object.values(activeFilters).filter(v => v).length + (searchTerm ? 1 : 0)}
             </Badge>
           )}
         </Button>
 
-        {activeFilterCount > 0 && (
-          <Button variant="ghost" size="sm" onClick={clearAllFilters}>
-            Limpar filtros
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            className="text-gray-500 dark:text-gray-400"
+          >
+            <X className="w-4 h-4 mr-1" />
+            Limpar
           </Button>
         )}
       </div>
 
-      {/* Filtros ativos */}
-      {activeFilterCount > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {activeFilters.category && (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              Categoria: {activeFilters.category}
-              <button onClick={() => clearFilter('category')}>
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          )}
-          {activeFilters.priority && (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              Prioridade: {activeFilters.priority}
-              <button onClick={() => clearFilter('priority')}>
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          )}
-          {activeFilters.status && (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              Status: {activeFilters.status}
-              <button onClick={() => clearFilter('status')}>
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          )}
-        </div>
-      )}
-
-      {/* Painel de filtros */}
+      {/* Filtros expandidos */}
       {showFilters && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Categoria</label>
-            <Select value={activeFilters.category || ''} onValueChange={(value) => handleFilterChange('category', value)}>
-              <SelectTrigger>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Categoria
+            </label>
+            <Select
+              value={activeFilters.category || ''}
+              onValueChange={(value) => handleFilterChange('category', value)}
+            >
+              <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                 <SelectValue placeholder="Todas as categorias" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="dark:bg-gray-700 dark:border-gray-600">
                 <SelectItem value="">Todas as categorias</SelectItem>
                 <SelectItem value="Trabalho">Trabalho</SelectItem>
                 <SelectItem value="Pessoal">Pessoal</SelectItem>
@@ -121,12 +96,17 @@ const TaskFilters = ({ onFilterChange, onSearchChange, activeFilters = {} }) => 
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Prioridade</label>
-            <Select value={activeFilters.priority || ''} onValueChange={(value) => handleFilterChange('priority', value)}>
-              <SelectTrigger>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Prioridade
+            </label>
+            <Select
+              value={activeFilters.priority || ''}
+              onValueChange={(value) => handleFilterChange('priority', value)}
+            >
+              <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                 <SelectValue placeholder="Todas as prioridades" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="dark:bg-gray-700 dark:border-gray-600">
                 <SelectItem value="">Todas as prioridades</SelectItem>
                 <SelectItem value="alta">Alta</SelectItem>
                 <SelectItem value="média">Média</SelectItem>
@@ -136,12 +116,17 @@ const TaskFilters = ({ onFilterChange, onSearchChange, activeFilters = {} }) => 
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Status</label>
-            <Select value={activeFilters.status || ''} onValueChange={(value) => handleFilterChange('status', value)}>
-              <SelectTrigger>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Status
+            </label>
+            <Select
+              value={activeFilters.status || ''}
+              onValueChange={(value) => handleFilterChange('status', value)}
+            >
+              <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                 <SelectValue placeholder="Todos os status" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="dark:bg-gray-700 dark:border-gray-600">
                 <SelectItem value="">Todos os status</SelectItem>
                 <SelectItem value="pending">Pendentes</SelectItem>
                 <SelectItem value="completed">Concluídas</SelectItem>
@@ -150,9 +135,62 @@ const TaskFilters = ({ onFilterChange, onSearchChange, activeFilters = {} }) => 
           </div>
         </div>
       )}
-    </div>
-  )
-}
 
-export default TaskFilters
+      {/* Tags de filtros ativos */}
+      {hasActiveFilters && (
+        <div className="flex flex-wrap gap-2">
+          {searchTerm && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Busca: "{searchTerm}"
+              <button
+                onClick={() => handleSearchChange('')}
+                className="ml-1 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-full p-0.5"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          )}
+          
+          {activeFilters.category && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Categoria: {activeFilters.category}
+              <button
+                onClick={() => handleFilterChange('category', '')}
+                className="ml-1 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-full p-0.5"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          )}
+          
+          {activeFilters.priority && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Prioridade: {activeFilters.priority}
+              <button
+                onClick={() => handleFilterChange('priority', '')}
+                className="ml-1 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-full p-0.5"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          )}
+          
+          {activeFilters.status && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Status: {activeFilters.status === 'pending' ? 'Pendentes' : 'Concluídas'}
+              <button
+                onClick={() => handleFilterChange('status', '')}
+                className="ml-1 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-full p-0.5"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default TaskFilters;
 

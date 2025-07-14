@@ -2,29 +2,42 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="/icon-192.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Planner Intuitivo - Organize sua vida com facilidade</title>
     
     <!-- PWA Meta Tags -->
-    <meta name="description" content="Um planner digital responsivo e intuitivo para organizar suas tarefas e alcançar seus objetivos">
-    <meta name="theme-color" content="#6366f1">
+    <meta name="theme-color" content="#6366f1" />
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Planner Intuitivo">
-    <meta name="msapplication-TileColor" content="#6366f1">
-    <meta name="msapplication-config" content="/browserconfig.xml">
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="O melhor app de planner gratuito. Organize suas tarefas, defina metas e alcance seus objetivos com facilidade." />
+    <meta name="keywords" content="planner, produtividade, tarefas, organização, calendário" />
+    <meta name="author" content="Planner Intuitivo" />
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Planner Intuitivo - Organize sua vida com facilidade" />
+    <meta property="og:description" content="O melhor app de planner gratuito. Organize suas tarefas, defina metas e alcance seus objetivos." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/icon-512.svg" />
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Planner Intuitivo" />
+    <meta name="twitter:description" content="O melhor app de planner gratuito" />
+    <meta name="twitter:image" content="/icon-512.svg" />
+    
+    <title>Planner Intuitivo - Organize sua vida com facilidade</title>
     
     <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="/manifest.json" />
     
     <!-- Apple Touch Icons -->
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-    
-    <!-- Preload critical resources -->
-    <link rel="preload" href="/src/main.jsx" as="script">
+    <link rel="apple-touch-icon" href="/icon-192.svg" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.svg" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.svg" />
   </head>
   <body>
     <div id="root"></div>
@@ -43,58 +56,6 @@
             });
         });
       }
-      
-      // PWA Install Prompt
-      let deferredPrompt;
-      
-      window.addEventListener('beforeinstallprompt', (e) => {
-        // Previne o prompt automático
-        e.preventDefault();
-        // Salva o evento para ser usado depois
-        deferredPrompt = e;
-        
-        // Mostra um botão de instalação customizado
-        const installButton = document.createElement('button');
-        installButton.textContent = '📱 Instalar App';
-        installButton.style.cssText = `
-          position: fixed;
-          bottom: 20px;
-          right: 20px;
-          background: #6366f1;
-          color: white;
-          border: none;
-          padding: 12px 16px;
-          border-radius: 8px;
-          font-weight: 500;
-          cursor: pointer;
-          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-          z-index: 1000;
-          font-size: 14px;
-        `;
-        
-        installButton.addEventListener('click', () => {
-          // Esconde o botão
-          installButton.style.display = 'none';
-          // Mostra o prompt de instalação
-          deferredPrompt.prompt();
-          // Aguarda a escolha do usuário
-          deferredPrompt.userChoice.then((choiceResult) => {
-            if (choiceResult.outcome === 'accepted') {
-              console.log('Usuário aceitou instalar o PWA');
-            } else {
-              console.log('Usuário rejeitou instalar o PWA');
-            }
-            deferredPrompt = null;
-          });
-        });
-        
-        document.body.appendChild(installButton);
-      });
-      
-      // Detecta quando o app foi instalado
-      window.addEventListener('appinstalled', (evt) => {
-        console.log('PWA foi instalado');
-      });
     </script>
   </body>
 </html>

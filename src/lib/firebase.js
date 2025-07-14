@@ -1,28 +1,50 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCc8brYHVLh2PCnmJdAGkmMkVUTGutl-Zg",
-  authDomain: "planner-tatatu.firebaseapp.com",
-  projectId: "planner-tatatu",
-  storageBucket: "planner-tatatu.firebasestorage.app",
-  messagingSenderId: "417996913330",
-  appId: "1:417996913330:web:04473fe823177033f327ab",
-  measurementId: "G-C4GQH5T470"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Verificar se as variáveis de ambiente estão configuradas
+const isFirebaseConfigured = () => {
+  return firebaseConfig.apiKey && 
+         firebaseConfig.authDomain && 
+         firebaseConfig.projectId;
+};
 
-// Initialize Firebase Authentication and get a reference to the service
-export const auth = getAuth(app);
+// Initialize Firebase apenas se estiver configurado
+let app = null;
+let auth = null;
+let db = null;
+let googleProvider = null;
 
-// Initialize Cloud Firestore and get a reference to the service
-export const db = getFirestore(app);
+if (isFirebaseConfigured()) {
+  try {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    googleProvider = new GoogleAuthProvider();
+    
+    console.log('Firebase inicializado com sucesso');
+  } catch (error) {
+    console.error('Erro ao inicializar Firebase:', error);
+  }
+} else {
+  console.warn('Firebase não configurado - usando modo offline');
+}
 
-export default app;
+export { 
+  auth, 
+  db, 
+  googleProvider,
+  isFirebaseConfigured
+};
 
