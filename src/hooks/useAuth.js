@@ -2,13 +2,12 @@ import { useState, useEffect } from 'react';
 import { 
   onAuthStateChanged, 
   signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut,
-  updateProfile,
-  GoogleAuthProvider,
-  signInWithPopup
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  signOut as firebaseSignOut,
+  updateProfile
 } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { auth, googleProvider, isFirebaseConfigured } from '../lib/firebase';
 
 export const useAuth = () => {
   const [user, setUser] = useState(null);
@@ -16,22 +15,34 @@ export const useAuth = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (!isFirebaseConfigured()) {
+      setError('Firebase não configurado. Verifique as variáveis de ambiente.');
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
+      setError(null);
     });
 
     return () => unsubscribe();
   }, []);
 
   const signIn = async (email, password) => {
+    if (!isFirebaseConfigured()) {
+      throw new Error('Firebase não configurado');
+    }
+
+    setLoading(true);
+    setError(null);
+    
     try {
-      setError(null);
-      setLoading(true);
       const result = await signInWithEmailAndPassword(auth, email, password);
       return result.user;
     } catch (error) {
-      setError(error.message);
+      setError(getErrorMessage(error.code));
       throw error;
     } finally {
       setLoading(false);
@@ -39,12 +50,17 @@ export const useAuth = () => {
   };
 
   const signUp = async (email, password, displayName) => {
+    if (!isFirebaseConfigured()) {
+      throw new Error('Firebase não configurado');
+    }
+
+    setLoading(true);
+    setError(null);
+    
     try {
-      setError(null);
-      setLoading(true);
       const result = await createUserWithEmailAndPassword(auth, email, password);
       
-      // Atualizar o perfil do usuário com o nome
+      // Atualizar o perfil com o nome
       if (displayName) {
         await updateProfile(result.user, {
           displayName: displayName
@@ -53,7 +69,7 @@ export const useAuth = () => {
       
       return result.user;
     } catch (error) {
-      setError(error.message);
+      setError(getErrorMessage(error.code));
       throw error;
     } finally {
       setLoading(false);
@@ -61,28 +77,56 @@ export const useAuth = () => {
   };
 
   const signInWithGoogle = async () => {
+    if (!isFirebaseConfigured()) {
+      throw new Error('Firebase não configurado');
+    }
+
+    setLoading(true);
+    setError(null);
+    
     try {
-      setError(null);
-      setLoading(true);
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, googleProvider);
       return result.user;
     } catch (error) {
-      setError(error.message);
+      setError(getErrorMessage(error.code));
       throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = async () => {
-    try {
-      setError(null);
-      await signOut(auth);
-    } catch (error) {
-      setError(error.message);
-      throw error;
+  const signOut = async () => {
+    if (!isFirebaseConfigured()) {
+      return;
     }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      await firebaseSignOut(auth);
+    } catch (error) {
+      setError(getErrorMessage(error.code));
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getErrorMessage = (errorCode) => {
+    const errorMessages = {
+      'auth/user-not-found': 'Usuário não encontrado',
+      'auth/wrong-password': 'Senha incorreta',
+      'auth/email-already-in-use': 'Este email já está em uso',
+      'auth/weak-password': 'A senha deve ter pelo menos 6 caracteres',
+      'auth/invalid-email': 'Email inválido',
+      'auth/too-many-requests': 'Muitas tentativas. Tente novamente mais tarde',
+      'auth/popup-closed-by-user': 'Login cancelado pelo usuário',
+      'auth/cancelled-popup-request': 'Login cancelado',
+      'auth/popup-blocked': 'Popup bloqueado pelo navegador'
+    };
+
+    return errorMessages[errorCode] || 'Erro de autenticação. Tente novamente.';
   };
 
   return {
@@ -92,7 +136,8 @@ export const useAuth = () => {
     signIn,
     signUp,
     signInWithGoogle,
-    logout
+    signOut,
+    isConfigured: isFirebaseConfigured()
   };
 };
 
