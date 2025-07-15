@@ -1,9 +1,9 @@
 {
-  "name": "planner-firebase-only",
+  "name": "planner-tatatu",
   "private": true,
   "version": "3.0.0",
   "type": "module",
-  "description": "O melhor planner gratuito com Firebase - Tarefas privadas por usuário",
+  "description": "O melhor planner gratuito",
   "keywords": ["planner", "firebase", "react", "productivity", "tasks"],
   "author": "Planner Intuitivo",
   "scripts": {
