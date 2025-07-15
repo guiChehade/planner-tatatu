@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Button } from './components/ui/button';
 import { Progress } from './components/ui/progress';
@@ -113,126 +113,81 @@ function App() {
     try {
       await toggleTaskComplete(taskId, completed);
     } catch (error) {
-      console.error('Erro ao atualizar status da tarefa:', error);
-    }
-  };
-
-  // Função para sincronização com Google Calendar
-  const handleGoogleCalendarSync = async () => {
-    if (!hasGoogleCredentials) {
-      alert('Configurações do Google Calendar não encontradas. Verifique as variáveis de ambiente REACT_APP_GOOGLE_API_KEY e REACT_APP_GOOGLE_CLIENT_ID.');
-      return;
-    }
-
-    if (!isGoogleAuthorized) {
-      try {
-        await authorizeGoogle();
-      } catch (error) {
-        console.error('Erro na autorização:', error);
-        alert('Erro ao autorizar acesso ao Google Calendar: ' + error.message);
-      }
-      return;
-    }
-
-    try {
-      const tasksWithDates = tasks.filter(task => task.dueDate && !task.completed);
-      const results = await syncTasksToCalendar(tasksWithDates);
-      
-      const successful = results.filter(r => r.success).length;
-      const failed = results.filter(r => !r.success).length;
-      
-      alert(`Sincronização concluída!\n${successful} tarefas sincronizadas com sucesso.\n${failed} tarefas falharam.`);
-    } catch (error) {
-      console.error('Erro na sincronização:', error);
-      alert('Erro ao sincronizar com Google Calendar: ' + error.message);
-    }
-  };
-
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'alta': return 'bg-red-100 text-red-800';
-      case 'média': return 'bg-yellow-100 text-yellow-800';
-      case 'baixa': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      console.error('Erro ao alterar status da tarefa:', error);
     }
   };
 
   const getCategoryColor = (category) => {
-    switch (category) {
-      case 'Trabalho': return 'bg-blue-100 text-blue-800';
-      case 'Pessoal': return 'bg-purple-100 text-purple-800';
-      case 'Saúde': return 'bg-green-100 text-green-800';
-      case 'Desenvolvimento': return 'bg-orange-100 text-orange-800';
-      case 'Estudos': return 'bg-indigo-100 text-indigo-800';
-      case 'Casa': return 'bg-pink-100 text-pink-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+    const colors = {
+      'Trabalho': 'bg-blue-100 text-blue-800',
+      'Pessoal': 'bg-purple-100 text-purple-800',
+      'Saúde': 'bg-green-100 text-green-800',
+      'Desenvolvimento': 'bg-orange-100 text-orange-800',
+      'Estudos': 'bg-yellow-100 text-yellow-800',
+      'Casa': 'bg-pink-100 text-pink-800'
+    };
+    return colors[category] || 'bg-gray-100 text-gray-800';
   };
 
-  // Loading state
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
+  const getPriorityColor = (priority) => {
+    const colors = {
+      'alta': 'bg-red-100 text-red-800',
+      'média': 'bg-yellow-100 text-yellow-800',
+      'baixa': 'bg-green-100 text-green-800'
+    };
+    return colors[priority] || 'bg-gray-100 text-gray-800';
+  };
 
-  // Se não estiver autenticado, mostrar tela de boas-vindas
+  // Se não estiver logado, mostrar tela de login
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white flex items-center justify-center">
-        <div className="max-w-md w-full mx-4">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <ListTodo className="w-8 h-8 text-white" />
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="max-w-md w-full">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <ListTodo className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Planner Intuitivo</h1>
+              <p className="text-gray-600">O melhor app de planner gratuito</p>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Planner Intuitivo
-            </h1>
-            <p className="text-gray-600 mb-8">
-              Organize suas tarefas e alcance seus objetivos com facilidade
-            </p>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    <span className="text-gray-700">Sincronização em tempo real</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    <span className="text-gray-700">Acesso de qualquer dispositivo</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    <span className="text-gray-700">Backup automático na nuvem</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    <span className="text-gray-700">Totalmente gratuito</span>
+                  </div>
+                </div>
+
+                <Button 
+                  className="w-full mt-6" 
+                  onClick={() => setShowAuthModal(true)}
+                >
+                  Começar Agora
+                </Button>
+              </CardContent>
+            </Card>
           </div>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <CheckCircle2 className="w-5 h-5 text-green-500" />
-                  <span className="text-gray-700">Sincronização em tempo real</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle2 className="w-5 h-5 text-green-500" />
-                  <span className="text-gray-700">Acesso de qualquer dispositivo</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle2 className="w-5 h-5 text-green-500" />
-                  <span className="text-gray-700">Backup automático na nuvem</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle2 className="w-5 h-5 text-green-500" />
-                  <span className="text-gray-700">Totalmente gratuito</span>
-                </div>
-              </div>
-
-              <Button 
-                className="w-full mt-6" 
-                onClick={() => setShowAuthModal(true)}
-              >
-                Começar Agora
-              </Button>
-            </CardContent>
-          </Card>
+          <AuthModal 
+            isOpen={showAuthModal} 
+            onClose={() => setShowAuthModal(false)} 
+          />
         </div>
-
-        <AuthModal 
-          isOpen={showAuthModal} 
-          onClose={() => setShowAuthModal(false)} 
-        />
       </div>
     );
   }
@@ -499,84 +454,79 @@ function App() {
 
               <TaskFilters
                 searchTerm={searchTerm}
-                setSearchTerm={setSearchTerm}
+                onSearchChange={setSearchTerm}
                 categoryFilter={categoryFilter}
-                setCategoryFilter={setCategoryFilter}
+                onCategoryChange={setCategoryFilter}
                 priorityFilter={priorityFilter}
-                setPriorityFilter={setPriorityFilter}
+                onPriorityChange={setPriorityFilter}
                 statusFilter={statusFilter}
-                setStatusFilter={setStatusFilter}
+                onStatusChange={setStatusFilter}
               />
 
-              {tasksLoading ? (
-                <div className="space-y-4">
-                  {[1, 2, 3, 4, 5].map(i => (
-                    <Card key={i}>
-                      <CardContent className="p-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-5 h-5 bg-gray-200 rounded-full animate-pulse"></div>
-                          <div className="flex-1 space-y-2">
-                            <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-                            <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4"></div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : filteredTasks.length === 0 ? (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <ListTodo className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 mb-4">
-                      {tasks.length === 0 ? 'Nenhuma tarefa criada ainda' : 'Nenhuma tarefa encontrada com os filtros aplicados'}
-                    </p>
-                    <Button onClick={() => setShowTaskForm(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Criar nova tarefa
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-4">
-                  {filteredTasks.map(task => (
+              <div className="space-y-4">
+                {filteredTasks.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-8 text-center">
+                      <ListTodo className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">
+                        {searchTerm || categoryFilter || priorityFilter || statusFilter 
+                          ? 'Nenhuma tarefa encontrada com os filtros aplicados'
+                          : 'Nenhuma tarefa criada ainda'
+                        }
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  filteredTasks.map(task => (
                     <Card key={task.id}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start space-x-3">
-                          <button
-                            onClick={() => handleToggleComplete(task.id, !task.completed)}
-                            className="flex-shrink-0 mt-1"
-                          >
-                            {task.completed ? (
-                              <CheckCircle2 className="w-5 h-5 text-green-500" />
-                            ) : (
-                              <Circle className="w-5 h-5 text-gray-400 hover:text-gray-600" />
-                            )}
-                          </button>
-                          
-                          <div className="flex-1 min-w-0">
-                            <h3 className={`font-medium ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}>
-                              {task.title}
-                            </h3>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {task.description}
-                            </p>
-                            <div className="flex items-center space-x-2 mt-2">
-                              <Badge className={getCategoryColor(task.category)}>
-                                {task.category}
-                              </Badge>
-                              <Badge className={getPriorityColor(task.priority)}>
-                                {task.priority}
-                              </Badge>
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start space-x-4 flex-1">
+                            <button
+                              onClick={() => handleToggleComplete(task.id, !task.completed)}
+                              className="flex-shrink-0 mt-1"
+                            >
+                              {task.completed ? (
+                                <CheckCircle2 className="w-6 h-6 text-green-600" />
+                              ) : (
+                                <Circle className="w-6 h-6 text-gray-400" />
+                              )}
+                            </button>
+                            
+                            <div className="flex-1 min-w-0">
+                              <h3 className={`text-lg font-medium mb-2 ${
+                                task.completed ? 'line-through text-gray-500' : 'text-gray-900'
+                              }`}>
+                                {task.title}
+                              </h3>
+                              <p className="text-gray-600 mb-3">
+                                {task.description}
+                              </p>
+                              
+                              <div className="flex items-center space-x-2 mb-2">
+                                <Badge className={getCategoryColor(task.category)}>
+                                  {task.category}
+                                </Badge>
+                                <Badge className={getPriorityColor(task.priority)}>
+                                  {task.priority}
+                                </Badge>
+                                {task.recurrence && task.recurrence.type !== 'none' && (
+                                  <Badge variant="outline" className="text-xs">
+                                    <Repeat className="w-3 h-3 mr-1" />
+                                    {formatRecurrenceDescription(task.recurrence)}
+                                  </Badge>
+                                )}
+                              </div>
+                              
                               {task.dueDate && (
-                                <span className="text-xs text-gray-500">
-                                  {new Date(task.dueDate).toLocaleDateString('pt-BR')}
-                                </span>
+                                <p className="text-sm text-gray-500">
+                                  Vencimento: {new Date(task.dueDate).toLocaleDateString('pt-BR')}
+                                </p>
                               )}
                             </div>
                           </div>
-
-                          <div className="flex items-center space-x-2">
+                          
+                          <div className="flex items-center space-x-2 ml-4">
                             <Button
                               variant="ghost"
                               size="sm"
@@ -591,6 +541,7 @@ function App() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDeleteTask(task.id)}
+                              className="text-red-600 hover:text-red-700"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -598,19 +549,18 @@ function App() {
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
             </div>
           )}
 
           {activeSection === 'calendar' && (
             <CalendarView
               tasks={tasks}
-              onTaskCreate={handleAddTask}
+              onTaskCreate={handleCreateTask}
               onTaskUpdate={handleUpdateTask}
               onTaskDelete={handleDeleteTask}
-              onGoogleCalendarSync={handleGoogleCalendarSync}
             />
           )}
 
@@ -625,15 +575,15 @@ function App() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex justify-between">
-                      <span>Concluídas</span>
+                      <span className="text-gray-600">Concluídas</span>
                       <span className="font-medium">{stats.completed}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Pendentes</span>
+                      <span className="text-gray-600">Pendentes</span>
                       <span className="font-medium">{stats.pending}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Total</span>
+                      <span className="text-gray-600">Total</span>
                       <span className="font-medium">{stats.total}</span>
                     </div>
                     <Progress value={stats.progress} className="mt-4" />
@@ -647,14 +597,16 @@ function App() {
                   <CardHeader>
                     <CardTitle>Por Categoria</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    {stats.categoryStats.map(category => (
-                      <div key={category.category}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>{category.category}</span>
-                          <span>{category.completed}/{category.total}</span>
+                  <CardContent className="space-y-4">
+                    {Object.entries(stats.byCategory || {}).map(([category, data]) => (
+                      <div key={category}>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-gray-600">{category}</span>
+                          <span className="text-sm font-medium">
+                            {data.completed}/{data.total}
+                          </span>
                         </div>
-                        <Progress value={category.progress} className="h-2" />
+                        <Progress value={(data.completed / data.total) * 100} />
                       </div>
                     ))}
                   </CardContent>
@@ -665,16 +617,15 @@ function App() {
         </main>
       </div>
 
-      {/* Task Form Modal */}
+      {/* Modal de Formulário de Tarefa */}
       {showTaskForm && (
         <TaskForm
-          isOpen={showTaskForm}
-          onClose={() => {
+          task={editingTask}
+          onSubmit={editingTask ? handleUpdateTask : handleCreateTask}
+          onCancel={() => {
             setShowTaskForm(false);
             setEditingTask(null);
           }}
-          onSubmit={editingTask ? handleUpdateTask : handleCreateTask}
-          initialData={editingTask}
         />
       )}
     </div>
