@@ -1,180 +1,150 @@
 import { useState, useEffect } from 'react';
 import { 
   collection, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot, 
   addDoc, 
   updateDoc, 
   deleteDoc, 
-  doc,
-  serverTimestamp
+  doc, 
+  query, 
+  where, 
+  orderBy, 
+  onSnapshot,
+  serverTimestamp 
 } from 'firebase/firestore';
-import { db, isFirebaseConfigured } from '../lib/firebase';
+import { db } from '../lib/firebase';
+import { useAuth } from './useAuth';
 
-export const useTasks = (userId) => {
+export const useTasks = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user } = useAuth();
 
   useEffect(() => {
-    if (!isFirebaseConfigured() || !userId) {
+    if (!user) {
+      setTasks([]);
       setLoading(false);
       return;
     }
 
     setLoading(true);
-    setError(null);
-
+    
     try {
       const tasksQuery = query(
         collection(db, 'tasks'),
-        where('userId', '==', userId),
+        where('userId', '==', user.uid),
         orderBy('createdAt', 'desc')
       );
 
-      const unsubscribe = onSnapshot(
-        tasksQuery,
-        (snapshot) => {
-          const tasksData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
-            updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt,
-            completedAt: doc.data().completedAt?.toDate?.()?.toISOString() || doc.data().completedAt
-          }));
-          
-          setTasks(tasksData);
-          setLoading(false);
-          setError(null);
-        },
-        (error) => {
-          console.error('Erro ao carregar tarefas:', error);
-          setError('Erro ao carregar tarefas');
-          setLoading(false);
-        }
-      );
+      const unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
+        const tasksData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate(),
+          updatedAt: doc.data().updatedAt?.toDate()
+        }));
+        
+        setTasks(tasksData);
+        setLoading(false);
+        setError(null);
+      }, (error) => {
+        console.error('Erro ao carregar tarefas:', error);
+        setError(error.message);
+        setLoading(false);
+      });
 
       return () => unsubscribe();
     } catch (error) {
-      console.error('Erro ao configurar listener de tarefas:', error);
-      setError('Erro ao configurar sincronização de tarefas');
+      console.error('Erro ao configurar listener:', error);
+      setError(error.message);
       setLoading(false);
     }
-  }, [userId]);
+  }, [user]);
 
   const addTask = async (taskData) => {
-    if (!isFirebaseConfigured() || !userId) {
-      throw new Error('Firebase não configurado ou usuário não autenticado');
+    if (!user) {
+      throw new Error('Usuário não autenticado');
     }
 
     try {
       const newTask = {
         ...taskData,
-        userId,
+        userId: user.uid,
         completed: false,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
 
-      const docRef = await addDoc(collection(db, 'tasks'), newTask);
-      return docRef.id;
+      await addDoc(collection(db, 'tasks'), newTask);
     } catch (error) {
-      console.error('Erro ao adicionar tarefa:', error);
-      throw new Error('Erro ao adicionar tarefa');
+      console.error('Erro ao criar tarefa:', error);
+      throw error;
     }
   };
 
   const updateTask = async (taskId, updates) => {
-    if (!isFirebaseConfigured() || !userId) {
-      throw new Error('Firebase não configurado ou usuário não autenticado');
+    if (!user) {
+      throw new Error('Usuário não autenticado');
     }
 
     try {
       const taskRef = doc(db, 'tasks', taskId);
-      const updateData = {
+      await updateDoc(taskRef, {
         ...updates,
         updatedAt: serverTimestamp()
-      };
-      await updateDoc(taskRef, updateData);
+      });
     } catch (error) {
       console.error('Erro ao atualizar tarefa:', error);
-      throw new Error('Erro ao atualizar tarefa');
+      throw error;
     }
   };
 
   const deleteTask = async (taskId) => {
-    if (!isFirebaseConfigured() || !userId) {
-      throw new Error('Firebase não configurado ou usuário não autenticado');
+    if (!user) {
+      throw new Error('Usuário não autenticado');
     }
 
     try {
-      const taskRef = doc(db, 'tasks', taskId);
-      await deleteDoc(taskRef);
+      await deleteDoc(doc(db, 'tasks', taskId));
     } catch (error) {
       console.error('Erro ao excluir tarefa:', error);
-      throw new Error('Erro ao excluir tarefa');
+      throw error;
     }
   };
 
-  const toggleTaskComplete = async (taskId) => {
-    if (!isFirebaseConfigured() || !userId) {
-      throw new Error('Firebase não configurado ou usuário não autenticado');
-    }
-
-    try {
-      const task = tasks.find(t => t.id === taskId);
-      if (!task) {
-        throw new Error('Tarefa não encontrada');
-      }
-
-      const taskRef = doc(db, 'tasks', taskId);
-      const updateData = {
-        completed: !task.completed,
-        updatedAt: serverTimestamp()
-      };
-
-      if (!task.completed) {
-        updateData.completedAt = serverTimestamp();
-      } else {
-        updateData.completedAt = null;
-      }
-
-      await updateDoc(taskRef, updateData);
-    } catch (error) {
-      console.error('Erro ao alterar status da tarefa:', error);
-      throw new Error('Erro ao alterar status da tarefa');
-    }
+  const toggleTaskComplete = async (taskId, completed) => {
+    await updateTask(taskId, { completed });
   };
 
   const getTaskStats = () => {
     const total = tasks.length;
-    const completed = tasks.filter(t => t.completed).length;
+    const completed = tasks.filter(task => task.completed).length;
     const pending = total - completed;
     const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
     
-    const byCategory = tasks.reduce((acc, task) => {
-      acc[task.category] = acc[task.category] || { total: 0, completed: 0 };
-      acc[task.category].total++;
-      if (task.completed) acc[task.category].completed++;
-      return acc;
-    }, {});
+    // Tarefas de hoje
+    const today = new Date().toISOString().split('T')[0];
+    const todayTasks = tasks.filter(task => task.dueDate === today);
+    
+    // Por categoria
+    const byCategory = {};
+    tasks.forEach(task => {
+      if (!byCategory[task.category]) {
+        byCategory[task.category] = { total: 0, completed: 0 };
+      }
+      byCategory[task.category].total++;
+      if (task.completed) {
+        byCategory[task.category].completed++;
+      }
+    });
 
-    const byPriority = tasks.reduce((acc, task) => {
-      acc[task.priority] = acc[task.priority] || { total: 0, completed: 0 };
-      acc[task.priority].total++;
-      if (task.completed) acc[task.priority].completed++;
-      return acc;
-    }, {});
-
-    return { 
-      total, 
-      completed, 
-      pending, 
-      progress, 
-      byCategory, 
-      byPriority 
+    return {
+      total,
+      completed,
+      pending,
+      progress,
+      today: todayTasks.length,
+      byCategory
     };
   };
 
@@ -186,8 +156,7 @@ export const useTasks = (userId) => {
     updateTask,
     deleteTask,
     toggleTaskComplete,
-    getTaskStats,
-    isConfigured: isFirebaseConfigured()
+    getTaskStats
   };
 };
 
