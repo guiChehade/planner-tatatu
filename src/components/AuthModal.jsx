@@ -1,88 +1,38 @@
 import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
 import { useAuth } from '../hooks/useAuth';
-import { 
-  Mail, 
-  Lock, 
-  User, 
-  Eye, 
-  EyeOff, 
-  Loader2,
-  AlertCircle,
-  Chrome
-} from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Loader2 } from 'lucide-react';
 
-export const AuthModal = () => {
+export const AuthModal = ({ isOpen = true, onClose }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    displayName: '',
     confirmPassword: ''
   });
-  const [formErrors, setFormErrors] = useState({});
 
-  const { signIn, signUp, signInWithGoogle, loading, error, isConfigured } = useAuth();
-
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    // Limpar erro quando usuário começar a digitar
-    if (formErrors[field]) {
-      setFormErrors(prev => ({ ...prev, [field]: '' }));
-    }
-  };
-
-  const validateForm = () => {
-    const errors = {};
-
-    if (!formData.email) {
-      errors.email = 'Email é obrigatório';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      errors.email = 'Email inválido';
-    }
-
-    if (!formData.password) {
-      errors.password = 'Senha é obrigatória';
-    } else if (formData.password.length < 6) {
-      errors.password = 'Senha deve ter pelo menos 6 caracteres';
-    }
-
-    if (!isLogin) {
-      if (!formData.displayName) {
-        errors.displayName = 'Nome é obrigatório';
-      }
-
-      if (!formData.confirmPassword) {
-        errors.confirmPassword = 'Confirmação de senha é obrigatória';
-      } else if (formData.password !== formData.confirmPassword) {
-        errors.confirmPassword = 'Senhas não coincidem';
-      }
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
+  const { signIn, signUp, signInWithGoogle, loading, error } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) {
-      return;
-    }
-
     try {
       if (isLogin) {
         await signIn(formData.email, formData.password);
       } else {
-        await signUp(formData.email, formData.password, formData.displayName);
+        if (formData.password !== formData.confirmPassword) {
+          throw new Error('As senhas não coincidem');
+        }
+        await signUp(formData.email, formData.password);
       }
+      
+      if (onClose) onClose();
     } catch (error) {
-      // Erro já é tratado no hook useAuth
       console.error('Erro de autenticação:', error);
     }
   };
@@ -90,190 +40,105 @@ export const AuthModal = () => {
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle();
+      if (onClose) onClose();
     } catch (error) {
       console.error('Erro no login com Google:', error);
     }
   };
 
-  const toggleMode = () => {
-    setIsLogin(!isLogin);
-    setFormData({
-      email: '',
-      password: '',
-      displayName: '',
-      confirmPassword: ''
-    });
-    setFormErrors({});
+  const handleInputChange = (e) => {
+    setFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }));
   };
 
-  if (!isConfigured) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
-        <Card className="w-full max-w-md dark:bg-gray-800 dark:border-gray-700">
-          <CardHeader className="text-center">
-            <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-white font-bold text-2xl">📋</span>
-            </div>
-            <CardTitle className="text-2xl text-gray-900 dark:text-white">
-              Configuração Necessária
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20">
-              <AlertCircle className="h-4 w-4 text-orange-600" />
-              <AlertDescription className="text-orange-800 dark:text-orange-200">
-                Firebase não está configurado. Configure as variáveis de ambiente para usar o planner.
-              </AlertDescription>
-            </Alert>
-            
-            <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
-              <p><strong>Passos necessários:</strong></p>
-              <ol className="list-decimal list-inside space-y-1">
-                <li>Crie um projeto no Firebase Console</li>
-                <li>Configure Authentication e Firestore</li>
-                <li>Adicione as variáveis no arquivo .env</li>
-                <li>Reinicie o servidor</li>
-              </ol>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  if (!isOpen) return null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
-      <Card className="w-full max-w-md dark:bg-gray-800 dark:border-gray-700">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-white font-bold text-2xl">📋</span>
+          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <User className="w-8 h-8 text-white" />
           </div>
-          <CardTitle className="text-2xl text-gray-900 dark:text-white">
+          <CardTitle className="text-2xl">
             {isLogin ? 'Entrar' : 'Criar Conta'}
           </CardTitle>
-          <p className="text-gray-600 dark:text-gray-400">
-            {isLogin 
-              ? 'Acesse seu planner pessoal' 
-              : 'Crie sua conta para começar a organizar suas tarefas'
-            }
+          <p className="text-gray-600">
+            {isLogin ? 'Acesse sua conta' : 'Crie sua conta gratuita'}
           </p>
         </CardHeader>
-
+        
         <CardContent className="space-y-4">
           {error && (
-            <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
-              <AlertCircle className="h-4 w-4 text-red-600" />
-              <AlertDescription className="text-red-800 dark:text-red-200">
-                {error}
-              </AlertDescription>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="displayName" className="text-gray-900 dark:text-white">
-                  Nome Completo
-                </Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="displayName"
-                    type="text"
-                    value={formData.displayName}
-                    onChange={(e) => handleInputChange('displayName', e.target.value)}
-                    placeholder="Seu nome completo"
-                    className={`pl-10 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
-                      formErrors.displayName ? 'border-red-500' : ''
-                    }`}
-                  />
-                </div>
-                {formErrors.displayName && (
-                  <p className="text-sm text-red-500">{formErrors.displayName}</p>
-                )}
-              </div>
-            )}
-
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-gray-900 dark:text-white">
-                Email
-              </Label>
+              <Label htmlFor="email">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
                   id="email"
+                  name="email"
                   type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
                   placeholder="seu@email.com"
-                  className={`pl-10 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
-                    formErrors.email ? 'border-red-500' : ''
-                  }`}
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="pl-10"
+                  required
                 />
               </div>
-              {formErrors.email && (
-                <p className="text-sm text-red-500">{formErrors.email}</p>
-              )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-900 dark:text-white">
-                Senha
-              </Label>
+              <Label htmlFor="password">Senha</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
                   id="password"
+                  name="password"
                   type={showPassword ? 'text' : 'password'}
-                  value={formData.password}
-                  onChange={(e) => handleInputChange('password', e.target.value)}
                   placeholder="Sua senha"
-                  className={`pl-10 pr-10 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
-                    formErrors.password ? 'border-red-500' : ''
-                  }`}
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className="pl-10 pr-10"
+                  required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {formErrors.password && (
-                <p className="text-sm text-red-500">{formErrors.password}</p>
-              )}
             </div>
 
             {!isLogin && (
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-gray-900 dark:text-white">
-                  Confirmar Senha
-                </Label>
+                <Label htmlFor="confirmPassword">Confirmar Senha</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     id="confirmPassword"
+                    name="confirmPassword"
                     type={showPassword ? 'text' : 'password'}
-                    value={formData.confirmPassword}
-                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
                     placeholder="Confirme sua senha"
-                    className={`pl-10 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
-                      formErrors.confirmPassword ? 'border-red-500' : ''
-                    }`}
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    className="pl-10"
+                    required
                   />
                 </div>
-                {formErrors.confirmPassword && (
-                  <p className="text-sm text-red-500">{formErrors.confirmPassword}</p>
-                )}
               </div>
             )}
 
-            <Button
-              type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
-              disabled={loading}
-            >
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -287,41 +152,50 @@ export const AuthModal = () => {
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-gray-300 dark:border-gray-600" />
+              <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white dark:bg-gray-800 px-2 text-gray-500">Ou</span>
+              <span className="bg-white px-2 text-gray-500">Ou</span>
             </div>
           </div>
 
           <Button
             type="button"
             variant="outline"
-            className="w-full dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+            className="w-full"
             onClick={handleGoogleSignIn}
             disabled={loading}
           >
-            {loading ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Chrome className="w-4 h-4 mr-2" />
-            )}
+            <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
             Continuar com Google
           </Button>
 
           <div className="text-center">
             <button
               type="button"
-              onClick={toggleMode}
-              className="text-sm text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
-              disabled={loading}
+              onClick={() => setIsLogin(!isLogin)}
+              className="text-sm text-indigo-600 hover:text-indigo-500"
             >
-              {isLogin 
-                ? 'Não tem uma conta? Criar conta' 
-                : 'Já tem uma conta? Entrar'
-              }
+              {isLogin ? 'Não tem uma conta? Criar conta' : 'Já tem uma conta? Entrar'}
             </button>
           </div>
+
+          {onClose && (
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                Fechar
+              </button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

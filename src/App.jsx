@@ -10,9 +10,6 @@ import { AuthModal } from './components/AuthModal';
 import { CalendarView } from './components/CalendarView';
 import { useAuth } from './hooks/useAuth';
 import { useTasks } from './hooks/useTasks';
-import { useRecurringTasks } from './hooks/useRecurringTasks';
-import { useGoogleCalendar } from './hooks/useGoogleCalendar';
-import { formatRecurrenceDescription } from './utils/recurrence';
 import { 
   CheckCircle2, 
   Circle, 
@@ -24,8 +21,7 @@ import {
   Home,
   ListTodo,
   TrendingUp,
-  Clock,
-  Repeat
+  Clock
 } from 'lucide-react';
 import './App.css';
 
@@ -37,7 +33,6 @@ function App() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const { user, loading: authLoading } = useAuth();
   const { 
@@ -49,19 +44,6 @@ function App() {
     toggleTaskComplete,
     getTaskStats 
   } = useTasks();
-
-  // Hook para gerenciar tarefas recorrentes
-  useRecurringTasks();
-
-  // Hook para integração com Google Calendar
-  const {
-    isAuthorized: isGoogleAuthorized,
-    authorize: authorizeGoogle,
-    syncTasksToCalendar,
-    loading: googleLoading,
-    error: googleError,
-    hasCredentials: hasGoogleCredentials
-  } = useGoogleCalendar();
 
   // Filtrar tarefas baseado nos filtros ativos
   const filteredTasks = useMemo(() => {
@@ -138,6 +120,21 @@ function App() {
     return colors[priority] || 'bg-gray-100 text-gray-800';
   };
 
+  // Mostrar loading enquanto verifica autenticação
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <ListTodo className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Planner Intuitivo</h1>
+          <p className="text-gray-600">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Se não estiver logado, mostrar tela de login
   if (!user) {
     return (
@@ -172,21 +169,11 @@ function App() {
                     <span className="text-gray-700">Totalmente gratuito</span>
                   </div>
                 </div>
-
-                <Button 
-                  className="w-full mt-6" 
-                  onClick={() => setShowAuthModal(true)}
-                >
-                  Começar Agora
-                </Button>
               </CardContent>
             </Card>
-          </div>
 
-          <AuthModal 
-            isOpen={showAuthModal} 
-            onClose={() => setShowAuthModal(false)} 
-          />
+            <AuthModal isOpen={true} />
+          </div>
         </div>
       </div>
     );
@@ -404,18 +391,6 @@ function App() {
                               <Badge className={getPriorityColor(task.priority)}>
                                 {task.priority}
                               </Badge>
-                              {task.recurrence && task.recurrence.type !== 'none' && (
-                                <Badge variant="outline" className="text-xs">
-                                  <Repeat className="w-3 h-3 mr-1" />
-                                  {formatRecurrenceDescription(task.recurrence)}
-                                </Badge>
-                              )}
-                              {task.isRecurringInstance && (
-                                <Badge variant="secondary" className="text-xs">
-                                  <Repeat className="w-3 h-3 mr-1" />
-                                  Instância
-                                </Badge>
-                              )}
                               {task.dueDate && (
                                 <span className="text-xs text-gray-500">
                                   {new Date(task.dueDate).toLocaleDateString('pt-BR')}
@@ -510,12 +485,6 @@ function App() {
                                 <Badge className={getPriorityColor(task.priority)}>
                                   {task.priority}
                                 </Badge>
-                                {task.recurrence && task.recurrence.type !== 'none' && (
-                                  <Badge variant="outline" className="text-xs">
-                                    <Repeat className="w-3 h-3 mr-1" />
-                                    {formatRecurrenceDescription(task.recurrence)}
-                                  </Badge>
-                                )}
                               </div>
                               
                               {task.dueDate && (

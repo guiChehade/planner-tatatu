@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { 
+  onAuthStateChanged, 
   signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signInWithPopup, 
-  signOut, 
-  onAuthStateChanged,
-  updateProfile
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
-import { auth, googleProvider, isFirebaseConfigured } from '../lib/firebase';
+import { auth } from '../lib/firebase';
 
 export const useAuth = () => {
   const [user, setUser] = useState(null);
@@ -15,114 +15,78 @@ export const useAuth = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!isFirebaseConfigured()) {
-      setLoading(false);
-      return;
-    }
-
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
-      setError(null);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const login = async (email, password) => {
-    if (!isFirebaseConfigured()) {
-      throw new Error('Firebase não configurado');
-    }
-
+  const signIn = async (email, password) => {
     try {
       setError(null);
+      setLoading(true);
       const result = await signInWithEmailAndPassword(auth, email, password);
       return result.user;
     } catch (error) {
-      console.error('Erro no login:', error);
-      setError(getErrorMessage(error.code));
+      setError(error.message);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
-  const register = async (email, password, name) => {
-    if (!isFirebaseConfigured()) {
-      throw new Error('Firebase não configurado');
-    }
-
+  const signUp = async (email, password) => {
     try {
       setError(null);
+      setLoading(true);
       const result = await createUserWithEmailAndPassword(auth, email, password);
-      
-      if (name) {
-        await updateProfile(result.user, { displayName: name });
-      }
-      
       return result.user;
     } catch (error) {
-      console.error('Erro no registro:', error);
-      setError(getErrorMessage(error.code));
+      setError(error.message);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loginWithGoogle = async () => {
-    if (!isFirebaseConfigured()) {
-      throw new Error('Firebase não configurado');
-    }
-
+  const signInWithGoogle = async () => {
     try {
       setError(null);
-      const result = await signInWithPopup(auth, googleProvider);
+      setLoading(true);
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
       return result.user;
     } catch (error) {
-      console.error('Erro no login com Google:', error);
-      setError(getErrorMessage(error.code));
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      setError(null);
+      await firebaseSignOut(auth);
+    } catch (error) {
+      setError(error.message);
       throw error;
     }
   };
 
-  const logout = async () => {
-    if (!isFirebaseConfigured()) {
-      return;
-    }
-
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error('Erro no logout:', error);
-      setError('Erro ao fazer logout');
-    }
-  };
-
-  const getErrorMessage = (errorCode) => {
-    switch (errorCode) {
-      case 'auth/user-not-found':
-        return 'Usuário não encontrado';
-      case 'auth/wrong-password':
-        return 'Senha incorreta';
-      case 'auth/email-already-in-use':
-        return 'Email já está em uso';
-      case 'auth/weak-password':
-        return 'Senha muito fraca';
-      case 'auth/invalid-email':
-        return 'Email inválido';
-      case 'auth/popup-closed-by-user':
-        return 'Login cancelado pelo usuário';
-      default:
-        return 'Erro de autenticação';
-    }
-  };
+  const logout = signOut; // Alias para compatibilidade
 
   return {
     user,
     loading,
     error,
-    login,
-    register,
-    loginWithGoogle,
-    logout,
-    isConfigured: isFirebaseConfigured()
+    signIn,
+    signUp,
+    signInWithGoogle,
+    signOut,
+    logout
   };
 };
 
