@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Button } from './components/ui/button';
 import { Progress } from './components/ui/progress';
 import { Badge } from './components/ui/badge';
+import { Input } from './components/ui/input';
+import { Alert, AlertDescription } from './components/ui/alert';
 import { TaskForm } from './components/TaskForm';
 import TaskFilters from './components/TaskFilters';
 import { CalendarView } from './components/CalendarView';
 import { AuthModal } from './components/AuthModal';
-import { UserHeader } from './components/UserHeader';
 import { useAuth } from './hooks/useAuth';
 import { useTasks } from './hooks/useTasks';
 import { 
@@ -22,7 +23,9 @@ import {
   Home,
   Moon,
   Sun,
-  Loader2
+  Loader2,
+  User,
+  LogOut
 } from 'lucide-react';
 
 function App() {
@@ -35,7 +38,7 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
 
   // Hooks de autenticação e tarefas
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
   const { 
     tasks, 
     loading: tasksLoading, 
@@ -223,7 +226,23 @@ function App() {
                   {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </Button>
                 
-                <UserHeader user={user} onSignOut={signOut} />
+                {/* User Menu */}
+                <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                    <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      {user.displayName || user.email}
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={logout}
+                    className="text-gray-600 dark:text-gray-300"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </Button>
+                </div>
                 
                 <Button
                   onClick={() => {

@@ -28,7 +28,6 @@ export const useTasks = (userId) => {
     setError(null);
 
     try {
-      // Query para buscar apenas as tarefas do usuário atual
       const tasksQuery = query(
         collection(db, 'tasks'),
         where('userId', '==', userId),
@@ -41,7 +40,6 @@ export const useTasks = (userId) => {
           const tasksData = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data(),
-            // Converter timestamps para strings se necessário
             createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
             updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt,
             completedAt: doc.data().completedAt?.toDate?.()?.toISOString() || doc.data().completedAt
@@ -53,7 +51,7 @@ export const useTasks = (userId) => {
         },
         (error) => {
           console.error('Erro ao carregar tarefas:', error);
-          setError('Erro ao carregar tarefas. Verifique sua conexão.');
+          setError('Erro ao carregar tarefas');
           setLoading(false);
         }
       );
@@ -61,7 +59,7 @@ export const useTasks = (userId) => {
       return () => unsubscribe();
     } catch (error) {
       console.error('Erro ao configurar listener de tarefas:', error);
-      setError('Erro ao configurar sincronização de tarefas.');
+      setError('Erro ao configurar sincronização de tarefas');
       setLoading(false);
     }
   }, [userId]);
@@ -74,7 +72,7 @@ export const useTasks = (userId) => {
     try {
       const newTask = {
         ...taskData,
-        userId, // Garantir que a tarefa pertence ao usuário atual
+        userId,
         completed: false,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -84,7 +82,7 @@ export const useTasks = (userId) => {
       return docRef.id;
     } catch (error) {
       console.error('Erro ao adicionar tarefa:', error);
-      throw new Error('Erro ao adicionar tarefa. Tente novamente.');
+      throw new Error('Erro ao adicionar tarefa');
     }
   };
 
@@ -95,16 +93,14 @@ export const useTasks = (userId) => {
 
     try {
       const taskRef = doc(db, 'tasks', taskId);
-      
       const updateData = {
         ...updates,
         updatedAt: serverTimestamp()
       };
-
       await updateDoc(taskRef, updateData);
     } catch (error) {
       console.error('Erro ao atualizar tarefa:', error);
-      throw new Error('Erro ao atualizar tarefa. Tente novamente.');
+      throw new Error('Erro ao atualizar tarefa');
     }
   };
 
@@ -118,7 +114,7 @@ export const useTasks = (userId) => {
       await deleteDoc(taskRef);
     } catch (error) {
       console.error('Erro ao excluir tarefa:', error);
-      throw new Error('Erro ao excluir tarefa. Tente novamente.');
+      throw new Error('Erro ao excluir tarefa');
     }
   };
 
@@ -134,24 +130,21 @@ export const useTasks = (userId) => {
       }
 
       const taskRef = doc(db, 'tasks', taskId);
-      
       const updateData = {
         completed: !task.completed,
         updatedAt: serverTimestamp()
       };
 
-      // Se estiver marcando como concluída, adicionar timestamp
       if (!task.completed) {
         updateData.completedAt = serverTimestamp();
       } else {
-        // Se estiver desmarcando, remover timestamp de conclusão
         updateData.completedAt = null;
       }
 
       await updateDoc(taskRef, updateData);
     } catch (error) {
       console.error('Erro ao alterar status da tarefa:', error);
-      throw new Error('Erro ao alterar status da tarefa. Tente novamente.');
+      throw new Error('Erro ao alterar status da tarefa');
     }
   };
 
