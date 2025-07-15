@@ -161,7 +161,7 @@ export const CalendarView = ({ tasks, onTaskCreate, onTaskUpdate, onTaskDelete }
               return (
                 <div
                   key={index}
-                  className={`min-h-[100px] p-2 border border-gray-200 dark:border-gray-600 rounded-lg transition-colors ${
+                  className={`min-h-[100px] p-2 border border-gray-200 dark:border-gray-600 rounded-lg transition-colors group ${
                     day.isCurrentMonth 
                       ? 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600' 
                       : 'bg-gray-50 dark:bg-gray-800 text-gray-400'

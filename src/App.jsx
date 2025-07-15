@@ -3,12 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Button } from './components/ui/button';
 import { Progress } from './components/ui/progress';
 import { Badge } from './components/ui/badge';
-import { Input } from './components/ui/input';
-import { Alert, AlertDescription } from './components/ui/alert';
 import { TaskForm } from './components/TaskForm';
 import TaskFilters from './components/TaskFilters';
 import { CalendarView } from './components/CalendarView';
 import { AuthModal } from './components/AuthModal';
+import { UserHeader } from './components/UserHeader';
 import { useAuth } from './hooks/useAuth';
 import { useTasks } from './hooks/useTasks';
 import { 
@@ -23,10 +22,9 @@ import {
   Home,
   Moon,
   Sun,
-  Loader2,
-  User,
-  LogOut
+  Loader2
 } from 'lucide-react';
+import './App.css';
 
 function App() {
   // Estados principais
@@ -38,7 +36,7 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
 
   // Hooks de autenticação e tarefas
-  const { user, loading: authLoading, logout } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const { 
     tasks, 
     loading: tasksLoading, 
@@ -226,23 +224,7 @@ function App() {
                   {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </Button>
                 
-                {/* User Menu */}
-                <div className="flex items-center space-x-2">
-                  <div className="flex items-center space-x-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                    <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      {user.displayName || user.email}
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={logout}
-                    className="text-gray-600 dark:text-gray-300"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </Button>
-                </div>
+                <UserHeader user={user} onSignOut={signOut} />
                 
                 <Button
                   onClick={() => {
@@ -309,7 +291,7 @@ function App() {
                     <div className="space-y-6">
                       <div>
                         <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                          Olá, {user.displayName || user.email}!
+                          Olá! Bem-vindo ao seu Planner
                         </h2>
                         <p className="text-gray-600 dark:text-gray-400">
                           Organize suas tarefas e alcance seus objetivos com facilidade
@@ -317,7 +299,7 @@ function App() {
                       </div>
 
                       {/* Cards de Estatísticas */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                         <Card className="dark:bg-gray-800 dark:border-gray-700">
                           <CardContent className="p-6">
                             <div className="flex items-center justify-between">
@@ -329,7 +311,7 @@ function App() {
                                 </p>
                               </div>
                               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                                <ListTodo className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                                <Circle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                               </div>
                             </div>
                           </CardContent>
@@ -345,6 +327,23 @@ function App() {
                               </div>
                               <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
                                 <BarChart3 className="w-6 h-6 text-green-600 dark:text-green-400" />
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="dark:bg-gray-800 dark:border-gray-700">
+                          <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total</p>
+                                <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-500">
+                                  {stats.completed} concluídas
+                                </p>
+                              </div>
+                              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
+                                <ListTodo className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                               </div>
                             </div>
                           </CardContent>
