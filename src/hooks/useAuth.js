@@ -5,7 +5,8 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  updateProfile
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
@@ -18,6 +19,11 @@ export const useAuth = () => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
+      setError(null);
+    }, (error) => {
+      console.error('Erro na autenticação:', error);
+      setError(error.message);
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -25,11 +31,12 @@ export const useAuth = () => {
 
   const signIn = async (email, password) => {
     try {
-      setError(null);
       setLoading(true);
+      setError(null);
       const result = await signInWithEmailAndPassword(auth, email, password);
       return result.user;
     } catch (error) {
+      console.error('Erro no login:', error);
       setError(error.message);
       throw error;
     } finally {
@@ -37,13 +44,19 @@ export const useAuth = () => {
     }
   };
 
-  const signUp = async (email, password) => {
+  const signUp = async (email, password, displayName) => {
     try {
-      setError(null);
       setLoading(true);
+      setError(null);
       const result = await createUserWithEmailAndPassword(auth, email, password);
+      
+      if (displayName) {
+        await updateProfile(result.user, { displayName });
+      }
+      
       return result.user;
     } catch (error) {
+      console.error('Erro no cadastro:', error);
       setError(error.message);
       throw error;
     } finally {
@@ -53,12 +66,13 @@ export const useAuth = () => {
 
   const signInWithGoogle = async () => {
     try {
-      setError(null);
       setLoading(true);
+      setError(null);
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       return result.user;
     } catch (error) {
+      console.error('Erro no login com Google:', error);
       setError(error.message);
       throw error;
     } finally {
@@ -68,15 +82,20 @@ export const useAuth = () => {
 
   const signOut = async () => {
     try {
+      setLoading(true);
       setError(null);
       await firebaseSignOut(auth);
     } catch (error) {
+      console.error('Erro no logout:', error);
       setError(error.message);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
-  const logout = signOut; // Alias para compatibilidade
+  // Alias para compatibilidade
+  const logout = signOut;
 
   return {
     user,

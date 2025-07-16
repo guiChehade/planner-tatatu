@@ -1,108 +1,23 @@
 {
-  "name": "Planner Intuitivo - O Melhor App de Planner Gratuito",
-  "short_name": "Planner Intuitivo",
-  "description": "Organize sua vida com facilidade. Tarefas recorrentes, calendário integrado, sincronização com Google Calendar e muito mais.",
+  "name": "Planner Intuitivo",
+  "short_name": "Planner",
+  "description": "O melhor app de planner gratuito",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#6366f1",
-  "orientation": "portrait-primary",
-  "scope": "/",
-  "lang": "pt-BR",
-  "categories": ["productivity", "lifestyle", "utilities"],
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
   "icons": [
     {
-      "src": "/icon-192.svg",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512.svg",
+      "src": "/icon-512.png", 
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/screenshot-mobile.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Interface mobile do Planner Intuitivo"
-    },
-    {
-      "src": "/screenshot-desktop.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Interface desktop do Planner Intuitivo"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Nova Tarefa",
-      "short_name": "Nova Tarefa",
-      "description": "Criar uma nova tarefa rapidamente",
-      "url": "/?action=new-task",
-      "icons": [
-        {
-          "src": "/icon-192.svg",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Tarefas de Hoje",
-      "short_name": "Hoje",
-      "description": "Ver tarefas programadas para hoje",
-      "url": "/?view=today",
-      "icons": [
-        {
-          "src": "/icon-192.svg",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Calendário",
-      "short_name": "Calendário",
-      "description": "Visualizar calendário de tarefas",
-      "url": "/?section=calendar",
-      "icons": [
-        {
-          "src": "/icon-192.svg",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Estatísticas",
-      "short_name": "Stats",
-      "description": "Ver estatísticas de produtividade",
-      "url": "/?section=stats",
-      "icons": [
-        {
-          "src": "/icon-192.svg",
-          "sizes": "192x192"
-        }
-      ]
-    }
-  ],
-  "prefer_related_applications": false,
-  "related_applications": [],
-  "edge_side_panel": {
-    "preferred_width": 400
-  },
-  "launch_handler": {
-    "client_mode": "focus-existing"
-  },
-  "handle_links": "preferred",
-  "protocol_handlers": [
-    {
-      "protocol": "web+planner",
-      "url": "/?task=%s"
     }
   ]
 }
